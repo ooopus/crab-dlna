@@ -132,7 +132,7 @@ impl MediaStreamingServer {
 
     #[allow(clippy::unnecessary_to_owned)]
     fn get_routes(
-        &self,
+        self,
     ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
         let video_route = warp::path(self.video_file.file_uri.to_string())
             .and(warp::fs::file(self.video_file.file_path.clone()));
@@ -158,8 +158,8 @@ impl MediaStreamingServer {
     }
 
     /// Start the media streaming server.
-    pub async fn run(&self) {
-        let streaming_routes = self.get_routes();
+    pub async fn run(self) {
+        let streaming_routes = self.clone().get_routes();
         warp::serve(streaming_routes).run(self.server_addr).await;
     }
 }

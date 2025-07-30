@@ -3,7 +3,7 @@ use crate::{
     dlna,
     error::Result,
     streaming::{
-        get_local_ip, infer_subtitle_from_video, MediaStreamingServer, STREAMING_PORT_DEFAULT,
+        MediaStreamingServer, STREAMING_PORT_DEFAULT, get_local_ip, infer_subtitle_from_video,
     },
 };
 use clap::{Args, Parser, Subcommand};
@@ -61,7 +61,7 @@ impl Commands {
         } else {
             "info"
         };
-        env::set_var("RUST_LOG", log_level);
+        unsafe { env::set_var("RUST_LOG", log_level) };
         pretty_env_logger::init();
     }
 }
@@ -98,7 +98,7 @@ struct Play {
     device_url: Option<String>,
 
     /// The file of the subtitle (if not provided, we derive it from <FILE_VIDEO>)
-    #[clap(short, long, parse(from_os_str), value_name = "FILE_SUBTITLE")]
+    #[clap(short, long, value_name = "FILE_SUBTITLE")]
     subtitle: Option<std::path::PathBuf>,
 
     /// Disable subtitles
@@ -106,7 +106,7 @@ struct Play {
     no_subtitle: bool,
 
     /// The file of the video to be played
-    #[clap(parse(from_os_str))]
+    #[clap()]
     file_video: std::path::PathBuf,
 }
 
