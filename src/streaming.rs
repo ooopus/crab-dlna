@@ -178,20 +178,25 @@ pub fn infer_subtitle_from_video(video_path: &std::path::Path) -> Option<std::pa
         "Inferring subtitle file from video file: {}",
         video_path.display()
     );
-    let infered_subtitle_path = video_path.with_extension("srt");
-    debug!(
-        "Inferred subtitle file: {}",
-        infered_subtitle_path.display()
-    );
-    match infered_subtitle_path.exists() {
-        true => Some(infered_subtitle_path),
-        false => {
-            warn!(
-                "Tried inferring subtitle file from video file '{}', but it does not exist: '{}'",
-                video_path.display(),
-                infered_subtitle_path.display()
-            );
-            None
+
+    // Try different subtitle formats in order of preference
+    for subtitle_type in crate::types::SubtitleType::all() {
+        let inferred_subtitle_path = video_path.with_extension(subtitle_type.extension());
+        debug!(
+            "Checking for {} subtitle file: {}",
+            subtitle_type,
+            inferred_subtitle_path.display()
+        );
+
+        if inferred_subtitle_path.exists() {
+            debug!("Found subtitle file: {}", inferred_subtitle_path.display());
+            return Some(inferred_subtitle_path);
         }
     }
+
+    warn!(
+        "Tried inferring subtitle file from video file '{}', but no supported subtitle file found",
+        video_path.display()
+    );
+    None
 }

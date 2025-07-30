@@ -4,6 +4,7 @@ use http::Uri;
 use log::{debug, info, warn};
 use rupnp::ssdp::{SearchTarget, URN};
 use std::time::Duration;
+use std::collections::HashSet;
 
 const AV_TRANSPORT: URN = URN::service("schemas-upnp-org", "AVTransport", 1);
 
@@ -77,12 +78,20 @@ impl Render {
         pin_utils::pin_mut!(devices);
 
         let mut renders = Vec::new();
+        let mut discovered_urls = HashSet::new();
 
         while let Some(result) = devices.next().await {
             match result {
                 Ok(device) => {
+                    let device_url = device.url().to_string();
+                    if discovered_urls.contains(&device_url) {
+                        debug!("Skipping duplicate device: {}", format_device!(device));
+                        continue;
+                    }
+                    
                     debug!("Found device: {}", format_device!(device));
                     if let Some(render) = Self::from_device(device).await {
+                        discovered_urls.insert(device_url);
                         renders.push(render);
                     };
                 }

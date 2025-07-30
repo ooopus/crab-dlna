@@ -97,9 +97,12 @@ pub mod cli;
 /// Definition of the errors
 mod error;
 
+/// Definition of the types
+mod types;
+
 pub use devices::{Render, RenderSpec};
 pub use dlna::play;
 pub use error::Error;
 pub use streaming::{
-    get_local_ip, infer_subtitle_from_video, MediaStreamingServer, STREAMING_PORT_DEFAULT,
+    MediaStreamingServer, STREAMING_PORT_DEFAULT, get_local_ip, infer_subtitle_from_video,
 };

@@ -19,11 +19,11 @@ pub async fn play(render: Render, streaming_server: MediaStreamingServer) -> Res
             escape_str_attribute(
                 format!(r###"
                     <DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"
-                               xmlns:dc="http://purl.org/dc/elements/1.1/" 
-                               xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" 
-                               xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/" 
-                               xmlns:sec="http://www.sec.co.kr/" 
-                               xmlns:xbmc="urn:schemas-xbmc-org:metadata-1-0/">
+                                xmlns:dc="http://purl.org/dc/elements/1.1/" 
+                                xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" 
+                                xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/" 
+                                xmlns:sec="http://www.sec.co.kr/" 
+                                xmlns:xbmc="urn:schemas-xbmc-org:metadata-1-0/">
                         <item id="0" parentID="-1" restricted="1">
                             <dc:title>nano-dlna Video</dc:title>
                             <res protocolInfo="http-get:*:video/{type_video}:" xmlns:pv="http://www.pv.com/pvns/" pv:subtitleFileUri="{uri_sub}" pv:subtitleFileType="{type_sub}">{uri_video}</res>
@@ -40,7 +40,7 @@ pub async fn play(render: Render, streaming_server: MediaStreamingServer) -> Res
                     uri_sub = subtitle_uri,
                     type_sub = streaming_server.subtitle_type().unwrap_or_else(|| "unknown".to_string())
                 ).as_str()
-           ).to_string()
+            ).to_string()
         }
         None => "".to_string()
     };
