@@ -43,13 +43,13 @@ impl Render {
     pub async fn new(render_spec: RenderSpec) -> Result<Self> {
         match &render_spec {
             RenderSpec::Location(device_url) => {
-                info!("Render specified by location: {}", device_url);
+                info!("Render specified by location: {device_url}");
                 Self::select_by_url(device_url)
                     .await?
                     .ok_or(Error::DevicesRenderNotFound(render_spec))
             }
             RenderSpec::Query(timeout, device_query) => {
-                info!("Render specified by query: {}", device_query);
+                info!("Render specified by query: {device_query}");
                 Self::select_by_query(*timeout, device_query)
                     .await?
                     .ok_or(Error::DevicesRenderNotFound(render_spec))
@@ -68,8 +68,7 @@ impl Render {
     /// Discovers DLNA device with AVTransport on the network.
     pub async fn discover(duration_secs: u64) -> Result<Vec<Self>> {
         info!(
-            "Discovering devices in the network, waiting {} seconds...",
-            duration_secs
+            "Discovering devices in the network, waiting {duration_secs} seconds..."
         );
         let search_target = SearchTarget::URN(AV_TRANSPORT);
         let devices =
@@ -88,7 +87,7 @@ impl Render {
                     };
                 }
                 Err(e) => {
-                    debug!("A device returned error while discovering it: {}", e);
+                    debug!("A device returned error while discovering it: {e}");
                 }
             }
         }
@@ -102,7 +101,7 @@ impl Render {
     }
 
     async fn select_by_url(url: &String) -> Result<Option<Self>> {
-        debug!("Selecting device by url: {}", url);
+        debug!("Selecting device by url: {url}");
         let uri: Uri = url
             .parse()
             .map_err(|_| Error::DevicesUrlParseError(url.to_owned()))?;
@@ -115,7 +114,7 @@ impl Render {
     }
 
     async fn select_by_query(duration_secs: u64, query: &String) -> Result<Option<Self>> {
-        debug!("Selecting device by query: '{}'", query);
+        debug!("Selecting device by query: '{query}'");
         for render in Self::discover(duration_secs).await? {
             let render_str = render.to_string();
             if render_str.contains(query.as_str()) {

@@ -44,18 +44,18 @@ impl MediaStreamingServer {
         host_ip: &String,
         host_port: &u32,
     ) -> Result<Self> {
-        let server_addr_str = format!("{}:{}", host_ip, host_port);
+        let server_addr_str = format!("{host_ip}:{host_port}");
         let server_addr: SocketAddr = server_addr_str
             .parse()
             .map_err(|_| Error::StreamingHostParseError(server_addr_str))?;
 
-        debug!("Streaming server address: {}", server_addr);
+        debug!("Streaming server address: {server_addr}");
 
         debug!("Creating video file route in streaming server");
         let video_file = match video_path.exists() {
             true => MediaFile {
                 file_path: video_path.to_path_buf(),
-                host_uri: format!("http://{}", server_addr),
+                host_uri: format!("http://{server_addr}"),
                 file_uri: slugify!(video_path.display().to_string().as_str(), separator = "."),
             },
             false => {
@@ -70,7 +70,7 @@ impl MediaStreamingServer {
             Some(subtitle_path) => match subtitle_path.exists() {
                 true => Some(MediaFile {
                     file_path: subtitle_path.clone(),
-                    host_uri: format!("http://{}", server_addr),
+                    host_uri: format!("http://{server_addr}"),
                     file_uri: slugify!(
                         subtitle_path.display().to_string().as_str(),
                         separator = "."
@@ -143,7 +143,7 @@ impl MediaStreamingServer {
         let subtitle_route = match &self.subtitle_file {
             Some(subtitle_file) => {
                 info!("Subtitle file: {}", subtitle_file.file_path.display());
-                debug!("Serving subtitle file: {}", subtitle_file);
+                debug!("Serving subtitle file: {subtitle_file}");
                 warp::path(subtitle_file.file_uri.to_string())
                     .and(warp::fs::file(subtitle_file.file_path.clone()))
             }

@@ -73,7 +73,7 @@ impl List {
     async fn run(&self, cli: &Cli) -> Result<()> {
         info!("List devices");
         for render in Render::discover(cli.timeout).await? {
-            println!("{}", render);
+            println!("{render}");
         }
         Ok(())
     }

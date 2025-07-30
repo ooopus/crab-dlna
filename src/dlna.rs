@@ -44,7 +44,7 @@ pub async fn play(render: Render, streaming_server: MediaStreamingServer) -> Res
         }
         None => "".to_string()
     };
-    debug!("Subtitle payload: '{}'", payload_subtitle);
+    debug!("Subtitle payload: '{payload_subtitle}'");
 
     let payload_setavtransporturi = format!(
         r#"
@@ -55,7 +55,7 @@ pub async fn play(render: Render, streaming_server: MediaStreamingServer) -> Res
         streaming_server.video_uri(),
         payload_subtitle
     );
-    debug!("SetAVTransportURI payload: '{}'", payload_setavtransporturi);
+    debug!("SetAVTransportURI payload: '{payload_setavtransporturi}'");
 
     info!("Starting media streaming server...");
     let streaming_server_handle = tokio::spawn(async move { streaming_server.run().await });
