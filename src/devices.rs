@@ -67,11 +67,11 @@ impl Render {
                     .await?
                     .ok_or(Error::RenderNotFound {
                         spec: render_spec.clone(),
-                        context: format!("No device found matching query '{}'", device_query),
+                        context: format!("No device found matching query '{device_query}'"),
                     })
             }
             RenderSpec::First(timeout) => {
-                info!("{}", RENDER_NOT_FOUND_MSG);
+                info!("{RENDER_NOT_FOUND_MSG}");
                 Ok(Self::discover(*timeout)
                     .await?
                     .first()
@@ -95,10 +95,7 @@ impl Render {
         search_attempts: usize,
         ttl: Option<u32>,
     ) -> Result<Vec<Self>> {
-        info!(
-            "Discovering devices in the network, waiting {} seconds...",
-            duration_secs
-        );
+        info!("Discovering devices in the network, waiting {duration_secs} seconds...");
         let search_target = SearchTarget::URN(AV_TRANSPORT);
         let devices = upnp_discover_with_config(
             &search_target,
@@ -146,12 +143,12 @@ impl Render {
         debug!("Selecting device by url: {url}");
         let uri: Uri = url.parse().map_err(|e| Error::DeviceUrlParseError {
             url: url.to_owned(),
-            reason: format!("Invalid URL format: {}", e),
+            reason: format!("Invalid URL format: {e}"),
         })?;
 
         let device = retry_with_backoff(
             || async { rupnp::Device::from_url(uri.clone()).await },
-            &format!("Device creation from URL {}", url),
+            &format!("Device creation from URL {url}"),
         )
         .await
         .map_err(|err| Error::DeviceCreationError {
@@ -276,7 +273,7 @@ async fn upnp_discover_with_config(
 /// Playback position information
 ///
 /// Contains all information returned by the GetPositionInfo operation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct PositionInfo {
     /// Current track number
     pub track: u32,
@@ -304,7 +301,7 @@ impl PositionInfo {
                 .get("Track")
                 .unwrap_or(&"0".to_string())
                 .parse()
-                .map_err(|e| format!("Failed to parse Track: {}", e))?,
+                .map_err(|e| format!("Failed to parse Track: {e}"))?,
             track_duration: map.get("TrackDuration").unwrap_or(&"".to_string()).clone(),
             track_meta_data: map.get("TrackMetaData").unwrap_or(&"".to_string()).clone(),
             track_uri: map.get("TrackURI").unwrap_or(&"".to_string()).clone(),
@@ -314,12 +311,12 @@ impl PositionInfo {
                 .get("RelCount")
                 .unwrap_or(&"-1".to_string())
                 .parse()
-                .map_err(|e| format!("Failed to parse RelCount: {}", e))?,
+                .map_err(|e| format!("Failed to parse RelCount: {e}"))?,
             abs_count: map
                 .get("AbsCount")
                 .unwrap_or(&"-1".to_string())
                 .parse()
-                .map_err(|e| format!("Failed to parse AbsCount: {}", e))?,
+                .map_err(|e| format!("Failed to parse AbsCount: {e}"))?,
         })
     }
 }
@@ -327,7 +324,7 @@ impl PositionInfo {
 /// Transport information
 ///
 /// Contains information returned by the GetTransportInfo operation
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct TransportInfo {
     /// Transport state (e.g., PLAYING, PAUSED_PLAYBACK, STOPPED)
     pub transport_state: String,

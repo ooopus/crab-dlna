@@ -57,7 +57,7 @@ impl MediaStreamingServer {
                 .parse()
                 .map_err(|e| Error::NetworkAddressParseError {
                     address: server_addr_str.clone(),
-                    reason: format!("{}: {}", INVALID_SOCKET_ADDRESS_MSG, e),
+                    reason: format!("{INVALID_SOCKET_ADDRESS_MSG}: {e}"),
                 })?;
 
         debug!("Streaming server address: {server_addr}");
@@ -156,7 +156,7 @@ impl MediaStreamingServer {
                     .and(warp::fs::file(subtitle_file.file_path.clone()))
             }
             None => {
-                info!("{}", LOG_MSG_NO_SUBTITLE_FILE);
+                info!("{LOG_MSG_NO_SUBTITLE_FILE}");
                 warp::path(DEFAULT_SUBTITLE_FILENAME.to_string())
                     .and(warp::fs::file(self.video_file.file_path.clone()))
             }

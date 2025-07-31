@@ -42,7 +42,7 @@ impl SubtitleSyncer {
         let clipboard = match Clipboard::new() {
             Ok(clipboard) => Some(clipboard),
             Err(e) => {
-                eprintln!("Warning: Failed to initialize clipboard: {}", e);
+                eprintln!("Warning: Failed to initialize clipboard: {e}");
                 None
             }
         };
@@ -78,7 +78,7 @@ impl SubtitleSyncer {
             clipboard
                 .set_text(subtitle_text)
                 .map_err(|e| Error::SubtitleSyncError {
-                    message: format!("Failed to copy to clipboard: {}", e),
+                    message: format!("Failed to copy to clipboard: {e}"),
                     context: "Clipboard operation failed".to_string(),
                 })?;
         }
@@ -108,7 +108,7 @@ impl SubtitleSyncer {
 fn parse_subtitle_file(subtitle_path: &Path) -> Result<Vec<SubtitleEntry>> {
     // Read subtitle file content
     let content = std::fs::read(subtitle_path).map_err(|e| Error::SubtitleSyncError {
-        message: format!("Failed to read subtitle file: {}", e),
+        message: format!("Failed to read subtitle file: {e}"),
         context: format!("Reading file: {}", subtitle_path.display()),
     })?;
 
@@ -123,13 +123,13 @@ fn parse_subtitle_file(subtitle_path: &Path) -> Result<Vec<SubtitleEntry>> {
     let format = subparse::get_subtitle_format_by_extension(Some(std::ffi::OsStr::new(&extension)))
         .ok_or_else(|| Error::SubtitleSyncError {
             message: "Unable to determine subtitle format".to_string(),
-            context: format!("File extension: {}", extension),
+            context: format!("File extension: {extension}"),
         })?;
 
     // Parse subtitle file
     let subtitle_file = subparse::parse_bytes(format, &content, None, 0.0).map_err(|e| {
         Error::SubtitleSyncError {
-            message: format!("Failed to parse subtitle file: {}", e),
+            message: format!("Failed to parse subtitle file: {e}"),
             context: format!("Parsing file: {}", subtitle_path.display()),
         }
     })?;
@@ -142,7 +142,7 @@ fn parse_subtitle_file(subtitle_path: &Path) -> Result<Vec<SubtitleEntry>> {
         subtitle_file
             .get_subtitle_entries()
             .map_err(|e| Error::SubtitleSyncError {
-                message: format!("Failed to get subtitle entries: {}", e),
+                message: format!("Failed to get subtitle entries: {e}"),
                 context: "Extracting subtitle entries from parsed file".to_string(),
             })?;
 
@@ -192,7 +192,7 @@ fn time_str_to_milliseconds(time_str: &str) -> Result<u64> {
     if parts.len() != 4 {
         return Err(Error::SubtitleSyncError {
             message: "Invalid time format".to_string(),
-            context: format!("Expected HH:MM:SS,mmm format, got: {}", time_str),
+            context: format!("Expected HH:MM:SS,mmm format, got: {time_str}"),
         });
     }
 

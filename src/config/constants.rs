@@ -51,9 +51,6 @@ pub const SUPPORTED_VIDEO_EXTENSIONS: &[&str] = &[
 pub const SUPPORTED_AUDIO_EXTENSIONS: &[&str] =
     &["mp3", "wav", "flac", "aac", "ogg", "wma", "m4a", "opus"];
 
-/// Supported subtitle file extensions in order of preference
-pub const SUPPORTED_SUBTITLE_EXTENSIONS: &[&str] = &["srt", "ass", "ssa"];
-
 // =============================================================================
 // Subtitle and Synchronization Constants
 // =============================================================================
@@ -113,6 +110,12 @@ pub const DLNA_ACTION_SET_AV_TRANSPORT_URI: &str = "SetAVTransportURI";
 /// DLNA action name for play
 pub const DLNA_ACTION_PLAY: &str = "Play";
 
+/// DLNA action name for pause
+pub const DLNA_ACTION_PAUSE: &str = "Pause";
+
+/// DLNA action name for stop
+pub const DLNA_ACTION_STOP: &str = "Stop";
+
 /// DLNA action name for getting position info
 pub const DLNA_ACTION_GET_POSITION_INFO: &str = "GetPositionInfo";
 
@@ -132,12 +135,6 @@ pub const LOG_MSG_SETTING_VIDEO_URI: &str = "Setting Video URI";
 
 /// Log message for playing video
 pub const LOG_MSG_PLAYING_VIDEO: &str = "Playing video";
-
-/// Log message for video file serving
-pub const LOG_MSG_VIDEO_FILE: &str = "Video file: {}";
-
-/// Log message for subtitle file serving
-pub const LOG_MSG_SUBTITLE_FILE: &str = "Subtitle file: {}";
 
 /// Log message for no subtitle file
 pub const LOG_MSG_NO_SUBTITLE_FILE: &str = "No subtitle file";

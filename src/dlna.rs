@@ -1,8 +1,8 @@
 use crate::{
     config::{
-        Config, DEFAULT_DLNA_VIDEO_TITLE, DLNA_ACTION_PLAY, DLNA_ACTION_SET_AV_TRANSPORT_URI,
-        DLNA_DEFAULT_SPEED, DLNA_INSTANCE_ID, LOG_MSG_PLAYING_VIDEO, LOG_MSG_SETTING_VIDEO_URI,
-        MEDIA_PLAYBACK_FAILED_MSG,
+        Config, DEFAULT_DLNA_VIDEO_TITLE, DLNA_ACTION_PAUSE, DLNA_ACTION_PLAY,
+        DLNA_ACTION_SET_AV_TRANSPORT_URI, DLNA_DEFAULT_SPEED, DLNA_INSTANCE_ID,
+        LOG_MSG_PLAYING_VIDEO, LOG_MSG_SETTING_VIDEO_URI, MEDIA_PLAYBACK_FAILED_MSG,
     },
     devices::Render,
     error::{Error, Result},
@@ -44,7 +44,7 @@ pub async fn play(
     info!("Starting media streaming server...");
     let streaming_server_handle = tokio::spawn(async move { streaming_server.run().await });
 
-    info!("{}", LOG_MSG_SETTING_VIDEO_URI);
+    info!("{LOG_MSG_SETTING_VIDEO_URI}");
     retry_with_backoff(
         || async {
             render
@@ -64,7 +64,7 @@ pub async fn play(
         uri: video_uri.clone(),
     })?;
 
-    info!("{}", LOG_MSG_PLAYING_VIDEO);
+    info!("{LOG_MSG_PLAYING_VIDEO}");
     let play_payload = build_play_payload(DLNA_INSTANCE_ID, DLNA_DEFAULT_SPEED);
     retry_with_backoff(
         || async {
@@ -100,11 +100,11 @@ pub async fn play(
 
                         // Update subtitle content in clipboard
                         if let Err(e) = syncer.update_clipboard(position_ms) {
-                            eprintln!("Failed to update clipboard: {}", e);
+                            eprintln!("Failed to update clipboard: {e}");
                         }
                     }
                     Err(e) => {
-                        eprintln!("Failed to get position info: {}", e);
+                        eprintln!("Failed to get position info: {e}");
                     }
                 }
             }
@@ -182,4 +182,80 @@ fn build_setavtransporturi_payload(
         streaming_server.video_uri(),
         metadata
     )
+}
+
+/// Builds a DLNA pause payload
+fn build_pause_payload(instance_id: u32) -> String {
+    format!(
+        r#"
+    <InstanceID>{instance_id}</InstanceID>
+"#
+    )
+}
+
+/// Pauses playback on a DLNA device
+pub async fn pause(render: &Render) -> Result<()> {
+    let pause_payload = build_pause_payload(DLNA_INSTANCE_ID);
+    retry_with_backoff(
+        || async {
+            render
+                .service
+                .action(render.device.url(), DLNA_ACTION_PAUSE, &pause_payload)
+                .await
+        },
+        "Pause",
+    )
+    .await
+    .map_err(|err| Error::DlnaPlaybackFailed {
+        source: err,
+        context: "Failed to pause media playback on render device".to_string(),
+    })?;
+
+    info!("Media playback paused");
+    Ok(())
+}
+
+/// Resumes playback on a DLNA device
+pub async fn resume(render: &Render) -> Result<()> {
+    let play_payload = build_play_payload(DLNA_INSTANCE_ID, DLNA_DEFAULT_SPEED);
+    retry_with_backoff(
+        || async {
+            render
+                .service
+                .action(render.device.url(), DLNA_ACTION_PLAY, &play_payload)
+                .await
+        },
+        "Resume",
+    )
+    .await
+    .map_err(|err| Error::DlnaPlaybackFailed {
+        source: err,
+        context: "Failed to resume media playback on render device".to_string(),
+    })?;
+
+    info!("Media playback resumed");
+    Ok(())
+}
+
+/// Toggles play/pause state based on current transport state
+pub async fn toggle_play_pause(render: &Render) -> Result<()> {
+    let transport_info = render.get_transport_info().await?;
+
+    match transport_info.transport_state.as_str() {
+        "PLAYING" => {
+            info!("Currently playing, pausing...");
+            pause(render).await
+        }
+        "PAUSED_PLAYBACK" | "STOPPED" => {
+            info!("Currently paused/stopped, resuming...");
+            resume(render).await
+        }
+        state => {
+            info!(
+                "Unknown transport state: {}, attempting to resume...",
+                state
+            );
+            resume(render).await
+        }
+    }
 }

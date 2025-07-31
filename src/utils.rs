@@ -100,13 +100,7 @@ pub fn detect_subtitle_type(path: &Path) -> Option<SubtitleType> {
         .unwrap_or("")
         .to_lowercase();
 
-    for subtitle_type in SubtitleType::all() {
-        if subtitle_type.extension() == extension {
-            return Some(subtitle_type);
-        }
-    }
-
-    None
+    SubtitleType::all().into_iter().find(|&subtitle_type| subtitle_type.extension() == extension)
 }
 
 /// Validates if a file path has a supported video extension
@@ -177,7 +171,7 @@ where
         match operation().await {
             Ok(result) => {
                 if attempt > 1 {
-                    debug!("{} succeeded on attempt {}", operation_name, attempt);
+                    debug!("{operation_name} succeeded on attempt {attempt}");
                 }
                 return Ok(result);
             }
@@ -185,14 +179,12 @@ where
                 if attempt < MAX_NETWORK_RETRIES {
                     let delay = Duration::from_millis(100 * (1 << (attempt - 1))); // Exponential backoff
                     warn!(
-                        "{} failed on attempt {} ({}), retrying in {:?}",
-                        operation_name, attempt, error, delay
+                        "{operation_name} failed on attempt {attempt} ({error}), retrying in {delay:?}"
                     );
                     sleep(delay).await;
                 } else {
                     warn!(
-                        "{} failed on final attempt {} ({})",
-                        operation_name, attempt, error
+                        "{operation_name} failed on final attempt {attempt} ({error})"
                     );
                 }
                 last_error = Some(error);
@@ -225,7 +217,7 @@ pub fn sanitize_filename_for_url(filename: &str) -> String {
 /// # Returns
 /// Returns a formatted string describing the device
 pub fn format_device_description(device_type: &str, friendly_name: &str, url: &str) -> String {
-    format!("[{}] {} @ {}", device_type, friendly_name, url)
+    format!("[{device_type}] {friendly_name} @ {url}")
 }
 
 /// Formats a device description with service type for display
@@ -245,8 +237,7 @@ pub fn format_device_with_service_description(
     url: &str,
 ) -> String {
     format!(
-        "[{}][{}] {} @ {}",
-        device_type, service_type, friendly_name, url
+        "[{device_type}][{service_type}] {friendly_name} @ {url}"
     )
 }
 

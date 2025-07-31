@@ -111,78 +111,74 @@ pub enum Error {
         /// Additional context about the subtitle operation
         context: String,
     },
+
+    // Keyboard input errors
+    /// Keyboard input handling encountered an error
+    KeyboardError {
+        /// The error message
+        message: String,
+    },
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::DeviceDiscoveryFailed { source, context } => {
-                write!(f, "Failed to discover devices: {} ({})", source, context)
+                write!(f, "Failed to discover devices: {source} ({context})")
             }
             Error::DeviceUrlParseError { url, reason } => {
-                write!(f, "Failed to parse URL '{}': {}", url, reason)
+                write!(f, "Failed to parse URL '{url}': {reason}")
             }
             Error::DeviceCreationError { url, source } => {
-                write!(f, "Failed to create device from '{}': {}", url, source)
+                write!(f, "Failed to create device from '{url}': {source}")
             }
             Error::RenderNotFound { spec, context } => match spec {
                 RenderSpec::Location(device_url) => {
-                    write!(f, "No render found at '{}': {}", device_url, context)
+                    write!(f, "No render found at '{device_url}': {context}")
                 }
                 RenderSpec::Query(timeout, device_query) => write!(
                     f,
-                    "No render found within {} seconds with query '{}': {}",
-                    timeout, device_query, context
+                    "No render found within {timeout} seconds with query '{device_query}': {context}"
                 ),
                 RenderSpec::First(timeout) => {
-                    write!(f, "No render found within {} seconds: {}", timeout, context)
+                    write!(f, "No render found within {timeout} seconds: {context}")
                 }
             },
             Error::NetworkAddressParseError { address, reason } => {
-                write!(
-                    f,
-                    "Failed to parse network address '{}': {}",
-                    address, reason
-                )
+                write!(f, "Failed to parse network address '{address}': {reason}")
             }
             Error::MediaFileNotFound { path, context } => {
-                write!(f, "Media file '{}' not found: {}", path, context)
+                write!(f, "Media file '{path}' not found: {context}")
             }
             Error::RenderConnectionFailed { host, source } => {
-                write!(f, "Failed to connect to render '{}': {}", host, source)
+                write!(f, "Failed to connect to render '{host}': {source}")
             }
             Error::LocalAddressResolutionFailed { source, context } => {
-                write!(
-                    f,
-                    "Failed to resolve local address: {} ({})",
-                    source, context
-                )
+                write!(f, "Failed to resolve local address: {source} ({context})")
             }
             Error::DlnaSetTransportUriFailed { source, uri } => {
-                write!(f, "Failed to set transport URI '{}': {}", uri, source)
+                write!(f, "Failed to set transport URI '{uri}': {source}")
             }
             Error::DlnaPlaybackFailed { source, context } => {
-                write!(f, "Failed to start playback: {} ({})", source, context)
+                write!(f, "Failed to start playback: {source} ({context})")
             }
             Error::DlnaActionFailed { action, source } => {
-                write!(f, "Failed to execute DLNA action '{}': {}", action, source)
+                write!(f, "Failed to execute DLNA action '{action}': {source}")
             }
             Error::DlnaResponseParseError { action, error } => {
                 write!(
                     f,
-                    "Failed to parse response from action '{}': {}",
-                    action, error
+                    "Failed to parse response from action '{action}': {error}"
                 )
             }
             Error::StreamingServerError { source, context } => {
-                write!(f, "Streaming server error: {} ({})", source, context)
+                write!(f, "Streaming server error: {source} ({context})")
             }
             Error::SubtitleSyncError { message, context } => {
-                write!(
-                    f,
-                    "Subtitle synchronization error: {} ({})",
-                    message, context
-                )
+                write!(f, "Subtitle synchronization error: {message} ({context})")
+            }
+            Error::KeyboardError { message } => {
+                write!(f, "Keyboard input error: {message}")
             }
         }
     }

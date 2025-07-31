@@ -4,6 +4,9 @@ use crate::{
     dlna,
     error::{Error, Result},
     infer_subtitle_from_video,
+    keyboard::start_interactive_control,
+    playlist::Playlist,
+    start_tui,
     streaming::{MediaStreamingServer, STREAMING_PORT_DEFAULT, get_local_ip},
     subtitle_sync::SubtitleSyncer,
     utils::is_supported_media_file,
@@ -97,7 +100,7 @@ struct List;
 
 impl List {
     async fn run(&self, config: &Config) -> Result<()> {
-        info!("{}", LOG_MSG_LIST_DEVICES);
+        info!("{LOG_MSG_LIST_DEVICES}");
         for render in Render::discover(config.discovery_timeout).await? {
             println!("{render}");
         }
@@ -135,38 +138,119 @@ struct Play {
     #[clap(long)]
     subtitle_sync: bool,
 
-    /// The file of the video to be played
+    /// Enable interactive keyboard control (space to pause/resume, q to quit)
+    #[clap(short, long)]
+    interactive: bool,
+
+    /// Enable Terminal User Interface (TUI) mode
+    #[clap(long)]
+    tui: bool,
+
+    /// Enable playlist mode (loop through all files)
+    #[clap(long)]
+    playlist: bool,
+
+    /// The file or directory to be played
     #[clap()]
-    file_video: std::path::PathBuf,
+    path: std::path::PathBuf,
 }
 
 impl Play {
     async fn run(&self, config: &Config) -> Result<()> {
         let render = self.select_render(config).await?;
-        let media_streaming_server = self.build_media_streaming_server(config).await?;
 
-        // Create subtitle syncer if subtitle synchronization is enabled and subtitle file exists
-        let subtitle_syncer = if self.subtitle_sync {
-            if let Some(subtitle_path) = media_streaming_server.subtitle_file_path() {
-                match SubtitleSyncer::new(subtitle_path) {
-                    Ok(syncer) => {
-                        info!("Subtitle synchronization enabled");
-                        Some(syncer)
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to create subtitle syncer: {}", e);
-                        None
-                    }
+        // Create playlist from path
+        let mut playlist = if self.path.is_dir() {
+            info!("Creating playlist from directory: {}", self.path.display());
+            Playlist::from_directory(&self.path)?
+        } else {
+            info!("Creating playlist from file: {}", self.path.display());
+            Playlist::from_file(&self.path)?
+        };
+
+        // Set playlist options
+        playlist.set_loop(self.playlist);
+
+        // Handle TUI mode
+        if self.tui {
+            info!("Starting TUI mode");
+            return start_tui(render, playlist).await;
+        }
+
+        // Start interactive control if requested
+        let interactive_handle = if self.interactive {
+            let render_clone = render.clone();
+            Some(tokio::spawn(async move {
+                if let Err(e) = start_interactive_control(render_clone).await {
+                    eprintln!("Interactive control error: {}", e);
                 }
-            } else {
-                eprintln!("Subtitle synchronization requires a subtitle file");
-                None
-            }
+            }))
         } else {
             None
         };
 
-        dlna::play(render, media_streaming_server, subtitle_syncer, config).await
+        // Play all files in the playlist
+        let mut play_result = Ok(());
+        while let Some(current_file) = playlist.next() {
+            info!("Playing: {}", current_file.display());
+
+            let media_streaming_server = self
+                .build_media_streaming_server_for_file(current_file, config)
+                .await?;
+
+            // Create subtitle syncer if subtitle synchronization is enabled and subtitle file exists
+            let subtitle_syncer = if self.subtitle_sync {
+                if let Some(subtitle_path) = media_streaming_server.subtitle_file_path() {
+                    match SubtitleSyncer::new(subtitle_path) {
+                        Ok(syncer) => {
+                            info!("Subtitle synchronization enabled");
+                            Some(syncer)
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to create subtitle syncer: {e}");
+                            None
+                        }
+                    }
+                } else {
+                    eprintln!("Subtitle synchronization requires a subtitle file");
+                    None
+                }
+            } else {
+                None
+            };
+
+            // Play the current file
+            play_result = dlna::play(
+                render.clone(),
+                media_streaming_server,
+                subtitle_syncer,
+                config,
+            )
+            .await;
+
+            if play_result.is_err() {
+                eprintln!(
+                    "Failed to play {}: {:?}",
+                    current_file.display(),
+                    play_result
+                );
+                if !self.playlist {
+                    break; // Stop on error if not in playlist mode
+                }
+            }
+
+            // If not in playlist mode, play only one file
+            if !self.playlist {
+                break;
+            }
+        }
+
+        // Cancel interactive control
+        if let Some(handle) = interactive_handle {
+            handle.abort();
+        }
+
+        play_result
     }
 
     async fn select_render(&self, config: &Config) -> Result<Render> {
@@ -181,13 +265,20 @@ impl Play {
         .await
     }
 
-    async fn build_media_streaming_server(&self, config: &Config) -> Result<MediaStreamingServer> {
-        info!("Building media streaming server");
+    async fn build_media_streaming_server_for_file(
+        &self,
+        file_path: &std::path::Path,
+        config: &Config,
+    ) -> Result<MediaStreamingServer> {
+        info!(
+            "Building media streaming server for file: {}",
+            file_path.display()
+        );
 
         // Validate that the video file is supported
-        if !is_supported_media_file(&self.file_video) {
+        if !is_supported_media_file(file_path) {
             return Err(Error::MediaFileNotFound {
-                path: self.file_video.display().to_string(),
+                path: file_path.display().to_string(),
                 context:
                     "Unsupported media file format. Please use a supported video or audio format."
                         .to_string(),
@@ -202,11 +293,11 @@ impl Play {
             false => self
                 .subtitle
                 .clone()
-                .or_else(|| infer_subtitle_from_video(&self.file_video)),
+                .or_else(|| infer_subtitle_from_video(file_path)),
             true => None,
         };
 
-        MediaStreamingServer::new(&self.file_video, &subtitle, host_ip, &host_port)
+        MediaStreamingServer::new(file_path, &subtitle, host_ip, &host_port)
     }
 }
 

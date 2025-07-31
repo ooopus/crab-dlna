@@ -25,6 +25,11 @@ simple_logger = "5.0.0"
 # Command line interface
 clap = { version = "4.5.42", features = ["derive"] }
 
+# Terminal and keyboard input
+crossterm = "0.28.1"
+ratatui = "0.28.1"
+tui-input = "0.10.1"
+
 # Network and UPnP/DLNA
 rupnp = "3.0.0"
 ssdp-client = "2.1.0"
