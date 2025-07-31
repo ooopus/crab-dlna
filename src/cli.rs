@@ -5,6 +5,7 @@ use crate::{
     streaming::{
         MediaStreamingServer, STREAMING_PORT_DEFAULT, get_local_ip, infer_subtitle_from_video,
     },
+    subtitle_sync::SubtitleSyncer,
 };
 use clap::{Args, Parser, Subcommand};
 use log::info;
@@ -105,6 +106,10 @@ struct Play {
     #[clap(short, long)]
     no_subtitle: bool,
 
+    /// Enable subtitle synchronization to clipboard
+    #[clap(long)]
+    subtitle_sync: bool,
+
     /// The file of the video to be played
     #[clap()]
     file_video: std::path::PathBuf,
@@ -114,7 +119,29 @@ impl Play {
     async fn run(&self, cli: &Cli) -> Result<()> {
         let render = self.select_render(cli).await?;
         let media_streaming_server = self.build_media_streaming_server().await?;
-        dlna::play(render, media_streaming_server).await
+
+        // 如果启用了字幕同步功能且有字幕文件，则创建字幕同步器
+        let subtitle_syncer = if self.subtitle_sync {
+            if let Some(subtitle_path) = media_streaming_server.subtitle_file_path() {
+                match SubtitleSyncer::new(subtitle_path) {
+                    Ok(syncer) => {
+                        info!("Subtitle synchronization enabled");
+                        Some(syncer)
+                    }
+                    Err(e) => {
+                        eprintln!("Failed to create subtitle syncer: {}", e);
+                        None
+                    }
+                }
+            } else {
+                eprintln!("Subtitle synchronization requires a subtitle file");
+                None
+            }
+        } else {
+            None
+        };
+
+        dlna::play(render, media_streaming_server, subtitle_syncer).await
     }
 
     async fn select_render(&self, cli: &Cli) -> Result<Render> {

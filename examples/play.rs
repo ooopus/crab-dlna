@@ -1,6 +1,6 @@
 use crab_dlna::{
-    get_local_ip, infer_subtitle_from_video, play, Error, MediaStreamingServer, Render, RenderSpec,
-    STREAMING_PORT_DEFAULT,
+    Error, MediaStreamingServer, Render, RenderSpec, STREAMING_PORT_DEFAULT, get_local_ip,
+    infer_subtitle_from_video, play,
 };
 use std::path::PathBuf;
 
@@ -15,5 +15,5 @@ async fn main() -> Result<(), Error> {
     let inferred_subtitle_path = infer_subtitle_from_video(&video_path);
     let media_streaming_server =
         MediaStreamingServer::new(&video_path, &inferred_subtitle_path, &host_ip, &host_port)?;
-    play(render, media_streaming_server).await
+    play(render, media_streaming_server, None).await
 }

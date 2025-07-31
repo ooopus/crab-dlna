@@ -100,9 +100,13 @@ mod error;
 /// Definition of the types
 mod types;
 
-pub use devices::{Render, RenderSpec};
+/// Subtitle synchronization
+mod subtitle_sync;
+
+pub use devices::{PositionInfo, Render, RenderSpec, TransportInfo};
 pub use dlna::play;
 pub use error::Error;
 pub use streaming::{
     MediaStreamingServer, STREAMING_PORT_DEFAULT, get_local_ip, infer_subtitle_from_video,
 };
+pub use subtitle_sync::SubtitleSyncer;

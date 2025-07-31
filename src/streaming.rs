@@ -130,7 +130,11 @@ impl MediaStreamingServer {
         })
     }
 
-    #[allow(clippy::unnecessary_to_owned)]
+    /// 获取字幕文件路径
+    pub fn subtitle_file_path(&self) -> Option<&std::path::Path> {
+        self.subtitle_file.as_ref().map(|f| f.file_path.as_path())
+    }
+
     fn get_routes(
         self,
     ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {

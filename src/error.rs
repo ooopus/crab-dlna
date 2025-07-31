@@ -26,6 +26,12 @@ pub enum Error {
     DLNAPlayError(rupnp::Error),
     /// An error occurred while serving and streaming the media files
     DLNAStreamingError(tokio::task::JoinError),
+    /// An error occurred while sending a DLNA action to the render
+    DLNAActionError(rupnp::Error),
+    /// An error occurred while parsing response from the render
+    ParsingError(String),
+    /// An error occurred while synchronizing subtitles
+    SubtitleSyncError(String),
 }
 
 impl fmt::Display for Error {
@@ -33,10 +39,9 @@ impl fmt::Display for Error {
         match self {
             Error::DevicesDiscoverFail(err) => write!(f, "Failed to discover devices: {err}"),
             Error::DevicesUrlParseError(url) => write!(f, "Failed to parse URL '{url}'"),
-            Error::DevicesCreateError(url, err) => write!(
-                f,
-                "Failed to parse and create device from '{url}': {err}"
-            ),
+            Error::DevicesCreateError(url, err) => {
+                write!(f, "Failed to parse and create device from '{url}': {err}")
+            }
             Error::DevicesRenderNotFound(render_spec) => match render_spec {
                 RenderSpec::Location(device_url) => {
                     write!(f, "No render found at '{device_url}'")
@@ -64,6 +69,9 @@ impl fmt::Display for Error {
             }
             Error::DLNAPlayError(err) => write!(f, "Failed to Play: {err}"),
             Error::DLNAStreamingError(err) => write!(f, "Failed to stream: {err}"),
+            Error::DLNAActionError(err) => write!(f, "Failed to execute DLNA action: {err}"),
+            Error::ParsingError(err) => write!(f, "Failed to parse response: {err}"),
+            Error::SubtitleSyncError(err) => write!(f, "Subtitle synchronization error: {err}"),
         }
     }
 }
@@ -78,6 +86,7 @@ impl std::error::Error for Error {
             Error::DLNASetAVTransportURIError(err) => Some(err),
             Error::DLNAPlayError(err) => Some(err),
             Error::DLNAStreamingError(err) => Some(err),
+            Error::DLNAActionError(err) => Some(err),
             _ => None,
         }
     }
