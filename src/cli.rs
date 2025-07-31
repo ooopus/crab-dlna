@@ -1,15 +1,16 @@
 use crate::{
+    config::{Config, DEFAULT_DISCOVERY_TIMEOUT, LOG_LEVEL_ENV_VAR, LOG_MSG_LIST_DEVICES},
     devices::{Render, RenderSpec},
     dlna,
-    error::Result,
-    streaming::{
-        MediaStreamingServer, STREAMING_PORT_DEFAULT, get_local_ip, infer_subtitle_from_video,
-    },
+    error::{Error, Result},
+    infer_subtitle_from_video,
+    streaming::{MediaStreamingServer, STREAMING_PORT_DEFAULT, get_local_ip},
     subtitle_sync::SubtitleSyncer,
+    utils::is_supported_media_file,
 };
 use clap::{Args, Parser, Subcommand};
-use log::info;
-use pretty_env_logger;
+use log::{LevelFilter, info};
+use simple_logger::SimpleLogger;
 use std::env;
 
 /// A minimal UPnP/DLNA media streamer
@@ -17,19 +18,34 @@ use std::env;
 #[clap(author, version, about, long_about = None)]
 struct Cli {
     /// Time in seconds to search and discover streamer hosts
-    #[clap(short, long, default_value_t = 5)]
+    #[clap(short, long, default_value_t = DEFAULT_DISCOVERY_TIMEOUT)]
     timeout: u64,
 
-    /// Turn debugging information on
-    #[clap(short, long)]
-    quiet: bool,
+    /// Log level
+    log_level: LevelFilter,
 
-    /// Turn debugging information on
-    #[clap(short = 'b', long)]
-    debug: bool,
+    /// Subtitle synchronization interval in milliseconds
+    #[clap(long, default_value_t = 500)]
+    subtitle_sync_interval: u64,
 
     #[clap(subcommand)]
     command: Commands,
+}
+
+impl Cli {
+    /// Build a Config from CLI arguments and Play command
+    fn build_config(&self, play_cmd: Option<&Play>) -> Config {
+        let mut config = Config::new()
+            .with_discovery_timeout(self.timeout)
+            .with_log_level(self.log_level)
+            .with_subtitle_sync_interval(self.subtitle_sync_interval);
+
+        if let Some(play) = play_cmd {
+            config = config.with_streaming_port(play.port);
+        }
+
+        config
+    }
 }
 
 #[derive(Subcommand)]
@@ -43,27 +59,36 @@ enum Commands {
 
 impl Commands {
     pub async fn run(&self, cli: &Cli) -> Result<()> {
-        self.setup_log(cli);
+        let config = match self {
+            Self::List(_) => cli.build_config(None),
+            Self::Play(play) => cli.build_config(Some(play)),
+        };
+        self.setup_log(&config);
         match self {
-            Self::List(list) => list.run(cli).await?,
-            Self::Play(play) => play.run(cli).await?,
+            Self::List(list) => list.run(&config).await?,
+            Self::Play(play) => play.run(&config).await?,
         }
         Ok(())
     }
 
-    fn setup_log(&self, cli: &Cli) {
-        let crabldna_log = env::var("CRABDLNA_LOG");
-        let log_level = if let Ok(crabldna_log) = &crabldna_log {
-            crabldna_log.as_str()
-        } else if cli.debug {
-            "debug"
-        } else if cli.quiet {
-            "warn"
+    fn setup_log(&self, _config: &Config) {
+        let log_level = if let Ok(crabldna_log) = env::var(LOG_LEVEL_ENV_VAR) {
+            match crabldna_log.as_str() {
+                "trace" => LevelFilter::Trace,
+                "debug" => LevelFilter::Debug,
+                "info" => LevelFilter::Info,
+                "warn" => LevelFilter::Warn,
+                "error" => LevelFilter::Error,
+                _ => LevelFilter::Info,
+            }
         } else {
-            "info"
+            LevelFilter::Info
         };
-        unsafe { env::set_var("RUST_LOG", log_level) };
-        pretty_env_logger::init();
+
+        SimpleLogger::new()
+            .with_level(log_level)
+            .init()
+            .unwrap_or_else(|_| eprintln!("Warning: Logger already initialized"));
     }
 }
 
@@ -71,9 +96,9 @@ impl Commands {
 struct List;
 
 impl List {
-    async fn run(&self, cli: &Cli) -> Result<()> {
-        info!("List devices");
-        for render in Render::discover(cli.timeout).await? {
+    async fn run(&self, config: &Config) -> Result<()> {
+        info!("{}", LOG_MSG_LIST_DEVICES);
+        for render in Render::discover(config.discovery_timeout).await? {
             println!("{render}");
         }
         Ok(())
@@ -116,11 +141,11 @@ struct Play {
 }
 
 impl Play {
-    async fn run(&self, cli: &Cli) -> Result<()> {
-        let render = self.select_render(cli).await?;
-        let media_streaming_server = self.build_media_streaming_server().await?;
+    async fn run(&self, config: &Config) -> Result<()> {
+        let render = self.select_render(config).await?;
+        let media_streaming_server = self.build_media_streaming_server(config).await?;
 
-        // 如果启用了字幕同步功能且有字幕文件，则创建字幕同步器
+        // Create subtitle syncer if subtitle synchronization is enabled and subtitle file exists
         let subtitle_syncer = if self.subtitle_sync {
             if let Some(subtitle_path) = media_streaming_server.subtitle_file_path() {
                 match SubtitleSyncer::new(subtitle_path) {
@@ -141,26 +166,37 @@ impl Play {
             None
         };
 
-        dlna::play(render, media_streaming_server, subtitle_syncer).await
+        dlna::play(render, media_streaming_server, subtitle_syncer, config).await
     }
 
-    async fn select_render(&self, cli: &Cli) -> Result<Render> {
+    async fn select_render(&self, config: &Config) -> Result<Render> {
         info!("Selecting render");
         Render::new(if let Some(device_url) = &self.device_url {
             RenderSpec::Location(device_url.to_owned())
         } else if let Some(device_query) = &self.device_query {
-            RenderSpec::Query(cli.timeout, device_query.to_owned())
+            RenderSpec::Query(config.discovery_timeout, device_query.to_owned())
         } else {
-            RenderSpec::First(cli.timeout)
+            RenderSpec::First(config.discovery_timeout)
         })
         .await
     }
 
-    async fn build_media_streaming_server(&self) -> Result<MediaStreamingServer> {
+    async fn build_media_streaming_server(&self, config: &Config) -> Result<MediaStreamingServer> {
         info!("Building media streaming server");
+
+        // Validate that the video file is supported
+        if !is_supported_media_file(&self.file_video) {
+            return Err(Error::MediaFileNotFound {
+                path: self.file_video.display().to_string(),
+                context:
+                    "Unsupported media file format. Please use a supported video or audio format."
+                        .to_string(),
+            });
+        }
+
         let local_host_ip = get_local_ip().await?;
         let host_ip = self.host.as_ref().unwrap_or(&local_host_ip);
-        let host_port = self.port;
+        let host_port = config.streaming_port;
 
         let subtitle = match &self.no_subtitle {
             false => self

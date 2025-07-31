@@ -1,12 +1,19 @@
-use crate::error::{Error, Result};
+use crate::{
+    config::{
+        DEFAULT_STREAMING_PORT, DEFAULT_SUBTITLE_FILENAME, INVALID_SOCKET_ADDRESS_MSG,
+        LOG_MSG_NO_SUBTITLE_FILE, USER_AGENT,
+    },
+    error::{Error, Result},
+    utils::{detect_subtitle_type, sanitize_filename_for_url},
+};
 use local_ip_address::local_ip;
-use log::{debug, info, warn};
-use slugify::slugify;
+use log::{debug, info};
+
 use std::net::SocketAddr;
 use warp::Filter;
 
 /// Default port to use for the streaming server
-pub const STREAMING_PORT_DEFAULT: u32 = 9000;
+pub const STREAMING_PORT_DEFAULT: u32 = DEFAULT_STREAMING_PORT;
 
 /// A media file to stream
 #[derive(Debug, Clone)]
@@ -45,9 +52,13 @@ impl MediaStreamingServer {
         host_port: &u32,
     ) -> Result<Self> {
         let server_addr_str = format!("{host_ip}:{host_port}");
-        let server_addr: SocketAddr = server_addr_str
-            .parse()
-            .map_err(|_| Error::StreamingHostParseError(server_addr_str))?;
+        let server_addr: SocketAddr =
+            server_addr_str
+                .parse()
+                .map_err(|e| Error::NetworkAddressParseError {
+                    address: server_addr_str.clone(),
+                    reason: format!("{}: {}", INVALID_SOCKET_ADDRESS_MSG, e),
+                })?;
 
         debug!("Streaming server address: {server_addr}");
 
@@ -56,12 +67,13 @@ impl MediaStreamingServer {
             true => MediaFile {
                 file_path: video_path.to_path_buf(),
                 host_uri: format!("http://{server_addr}"),
-                file_uri: slugify!(video_path.display().to_string().as_str(), separator = "."),
+                file_uri: sanitize_filename_for_url(&video_path.display().to_string()),
             },
             false => {
-                return Err(Error::StreamingFileDoesNotExist(
-                    video_path.display().to_string(),
-                ));
+                return Err(Error::MediaFileNotFound {
+                    path: video_path.display().to_string(),
+                    context: "Video file does not exist or is not accessible".to_string(),
+                });
             }
         };
 
@@ -71,15 +83,13 @@ impl MediaStreamingServer {
                 true => Some(MediaFile {
                     file_path: subtitle_path.clone(),
                     host_uri: format!("http://{server_addr}"),
-                    file_uri: slugify!(
-                        subtitle_path.display().to_string().as_str(),
-                        separator = "."
-                    ),
+                    file_uri: sanitize_filename_for_url(&subtitle_path.display().to_string()),
                 }),
                 false => {
-                    return Err(Error::StreamingFileDoesNotExist(
-                        subtitle_path.display().to_string(),
-                    ));
+                    return Err(Error::MediaFileNotFound {
+                        path: subtitle_path.display().to_string(),
+                        context: "Subtitle file does not exist or is not accessible".to_string(),
+                    });
                 }
             },
             None => None,
@@ -118,19 +128,13 @@ impl MediaStreamingServer {
 
     #[doc(hidden)]
     pub fn subtitle_type(&self) -> Option<String> {
-        self.subtitle_file.clone().map(|subtitle_file| {
-            subtitle_file
-                .file_path
-                .as_path()
-                .extension()
-                .unwrap_or_default()
-                .to_str()
-                .unwrap_or_default()
-                .to_string()
+        self.subtitle_file.as_ref().and_then(|subtitle_file| {
+            detect_subtitle_type(&subtitle_file.file_path)
+                .map(|subtitle_type| subtitle_type.to_string())
         })
     }
 
-    /// 获取字幕文件路径
+    /// Gets the subtitle file path
     pub fn subtitle_file_path(&self) -> Option<&std::path::Path> {
         self.subtitle_file.as_ref().map(|f| f.file_path.as_path())
     }
@@ -152,13 +156,15 @@ impl MediaStreamingServer {
                     .and(warp::fs::file(subtitle_file.file_path.clone()))
             }
             None => {
-                info!("No subtitle file");
-                warp::path("dummy.srt".to_string())
+                info!("{}", LOG_MSG_NO_SUBTITLE_FILE);
+                warp::path(DEFAULT_SUBTITLE_FILENAME.to_string())
                     .and(warp::fs::file(self.video_file.file_path.clone()))
             }
         };
 
-        warp::get().and(video_route.or(subtitle_route))
+        warp::get()
+            .and(video_route.or(subtitle_route))
+            .with(warp::reply::with::header("Server", USER_AGENT))
     }
 
     /// Start the media streaming server.
@@ -172,35 +178,9 @@ impl MediaStreamingServer {
 pub async fn get_local_ip() -> Result<String> {
     debug!("Identifying local IP address of host");
     Ok(local_ip()
-        .map_err(Error::StreamingIdentifyLocalAddressError)?
+        .map_err(|err| Error::LocalAddressResolutionFailed {
+            source: err,
+            context: "Failed to determine local IP address for streaming server".to_string(),
+        })?
         .to_string())
-}
-
-/// Infer the subtitle file path from the video file path.
-pub fn infer_subtitle_from_video(video_path: &std::path::Path) -> Option<std::path::PathBuf> {
-    debug!(
-        "Inferring subtitle file from video file: {}",
-        video_path.display()
-    );
-
-    // Try different subtitle formats in order of preference
-    for subtitle_type in crate::types::SubtitleType::all() {
-        let inferred_subtitle_path = video_path.with_extension(subtitle_type.extension());
-        debug!(
-            "Checking for {} subtitle file: {}",
-            subtitle_type,
-            inferred_subtitle_path.display()
-        );
-
-        if inferred_subtitle_path.exists() {
-            debug!("Found subtitle file: {}", inferred_subtitle_path.display());
-            return Some(inferred_subtitle_path);
-        }
-    }
-
-    warn!(
-        "Tried inferring subtitle file from video file '{}', but no supported subtitle file found",
-        video_path.display()
-    );
-    None
 }

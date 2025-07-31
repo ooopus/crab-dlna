@@ -38,6 +38,7 @@ the subtitle file.
 ```rust,no_run
 use std::path::PathBuf;
 use crab_dlna::{
+    Config,
     Render,
     RenderSpec,
     MediaStreamingServer,
@@ -63,7 +64,8 @@ async fn main() -> Result<(), Error> {
         &host_ip,
         &host_port,
     )?;
-    play(render, media_streaming_server).await
+    let config = Config::default();
+    play(render, media_streaming_server, None, &config).await
 }
 ```
 
@@ -81,6 +83,12 @@ How does `play` work?
 2. Send a `SetAVTransportURI` message to the device, specifying the HTTP URLs of the media files
 3. Send a `Play` message to the device
 */
+
+/// Configuration constants and settings
+mod config;
+
+/// Utility functions and helpers
+mod utils;
 
 /// Discovery of render devices in the network
 mod devices;
@@ -103,10 +111,10 @@ mod types;
 /// Subtitle synchronization
 mod subtitle_sync;
 
+pub use config::Config;
 pub use devices::{PositionInfo, Render, RenderSpec, TransportInfo};
 pub use dlna::play;
 pub use error::Error;
-pub use streaming::{
-    MediaStreamingServer, STREAMING_PORT_DEFAULT, get_local_ip, infer_subtitle_from_video,
-};
+pub use streaming::{MediaStreamingServer, STREAMING_PORT_DEFAULT, get_local_ip};
 pub use subtitle_sync::SubtitleSyncer;
+pub use utils::infer_subtitle_from_video;

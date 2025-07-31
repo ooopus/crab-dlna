@@ -1,4 +1,6 @@
-use crab_dlna::{Error, MediaStreamingServer, Render, RenderSpec, STREAMING_PORT_DEFAULT, play};
+use crab_dlna::{
+    Config, Error, MediaStreamingServer, Render, RenderSpec, STREAMING_PORT_DEFAULT, play,
+};
 use std::{path::PathBuf, time::Duration};
 use tokio::time::sleep;
 
@@ -21,8 +23,9 @@ async fn main() -> Result<(), Error> {
     // 启动播放任务
     let render_clone = render.clone();
     let streaming_server = media_streaming_server.clone();
+    let config = Config::default();
     tokio::spawn(async move {
-        if let Err(e) = play(render_clone, streaming_server, None).await {
+        if let Err(e) = play(render_clone, streaming_server, None, &config).await {
             eprintln!("播放错误: {}", e);
         }
     });

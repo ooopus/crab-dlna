@@ -32,3 +32,37 @@ impl std::fmt::Display for SubtitleType {
         write!(f, "{}", self.extension())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_subtitle_type_extension() {
+        assert_eq!(SubtitleType::Srt.extension(), "srt");
+        assert_eq!(SubtitleType::Ass.extension(), "ass");
+        assert_eq!(SubtitleType::Ssa.extension(), "ssa");
+    }
+
+    #[test]
+    fn test_subtitle_type_display() {
+        assert_eq!(SubtitleType::Srt.to_string(), "srt");
+        assert_eq!(SubtitleType::Ass.to_string(), "ass");
+        assert_eq!(SubtitleType::Ssa.to_string(), "ssa");
+    }
+
+    #[test]
+    fn test_subtitle_type_all() {
+        let all_types = SubtitleType::all();
+        assert_eq!(all_types.len(), 3);
+        assert_eq!(all_types[0], SubtitleType::Srt);
+        assert_eq!(all_types[1], SubtitleType::Ass);
+        assert_eq!(all_types[2], SubtitleType::Ssa);
+    }
+
+    #[test]
+    fn test_subtitle_type_equality() {
+        assert_eq!(SubtitleType::Srt, SubtitleType::Srt);
+        assert_ne!(SubtitleType::Srt, SubtitleType::Ass);
+    }
+}

@@ -1,48 +1,48 @@
-//! 字幕同步模块
+//! Subtitle synchronization module
 //!
-//! 此模块提供字幕同步功能，包括解析字幕文件、根据播放时间获取当前字幕内容，
-//! 以及将字幕内容复制到剪贴板等功能。
+//! This module provides subtitle synchronization functionality, including parsing subtitle files,
+//! retrieving current subtitle content based on playback time, and copying subtitle content to clipboard.
 
 use crate::error::{Error, Result};
 use arboard::Clipboard;
 use std::path::Path;
 
-/// 字幕条目
+/// Subtitle entry containing timing and text information
 #[derive(Debug, Clone)]
 pub struct SubtitleEntry {
-    /// 开始时间（毫秒）
+    /// Start time in milliseconds
     pub start_time: u64,
-    /// 结束时间（毫秒）
+    /// End time in milliseconds
     pub end_time: u64,
-    /// 字幕文本
+    /// Subtitle text content
     pub text: String,
 }
 
-/// 字幕同步器
+/// Subtitle synchronizer for managing subtitle display and clipboard integration
 pub struct SubtitleSyncer {
-    /// 解析后的字幕条目列表
+    /// List of parsed subtitle entries
     entries: Vec<SubtitleEntry>,
-    /// 剪贴板实例
+    /// Clipboard instance for copying subtitle text
     clipboard: Option<Clipboard>,
 }
 
 impl SubtitleSyncer {
-    /// 创建新的字幕同步器
+    /// Creates a new subtitle synchronizer
     ///
-    /// # 参数
-    /// * `subtitle_path` - 字幕文件路径
+    /// # Arguments
+    /// * `subtitle_path` - Path to the subtitle file
     ///
-    /// # 返回值
-    /// 返回创建的字幕同步器实例
+    /// # Returns
+    /// Returns a new subtitle synchronizer instance
     pub fn new(subtitle_path: &Path) -> Result<Self> {
-        // 解析字幕文件
+        // Parse subtitle file
         let entries = parse_subtitle_file(subtitle_path)?;
 
-        // 初始化剪贴板
+        // Initialize clipboard
         let clipboard = match Clipboard::new() {
             Ok(clipboard) => Some(clipboard),
             Err(e) => {
-                eprintln!("警告: 无法初始化剪贴板: {}", e);
+                eprintln!("Warning: Failed to initialize clipboard: {}", e);
                 None
             }
         };
@@ -50,13 +50,13 @@ impl SubtitleSyncer {
         Ok(SubtitleSyncer { entries, clipboard })
     }
 
-    /// 根据播放时间获取当前字幕内容
+    /// Gets the current subtitle content based on playback time
     ///
-    /// # 参数
-    /// * `position_ms` - 播放位置（毫秒）
+    /// # Arguments
+    /// * `position_ms` - Playback position in milliseconds
     ///
-    /// # 返回值
-    /// 返回当前应该显示的字幕文本，如果没有字幕则返回空字符串
+    /// # Returns
+    /// Returns the subtitle text that should be displayed at the given time, or empty string if no subtitle
     pub fn get_current_subtitle(&self, position_ms: u64) -> String {
         for entry in &self.entries {
             if position_ms >= entry.start_time && position_ms <= entry.end_time {
@@ -66,77 +66,93 @@ impl SubtitleSyncer {
         String::new()
     }
 
-    /// 将字幕内容复制到剪贴板
+    /// Copies subtitle content to clipboard
     ///
-    /// # 参数
-    /// * `subtitle_text` - 要复制到剪贴板的字幕文本
+    /// # Arguments
+    /// * `subtitle_text` - The subtitle text to copy to clipboard
     ///
-    /// # 返回值
-    /// 如果成功复制到剪贴板则返回Ok，否则返回Err
+    /// # Returns
+    /// Returns Ok if successfully copied to clipboard, otherwise returns Err
     pub fn copy_to_clipboard(&mut self, subtitle_text: &str) -> Result<()> {
         if let Some(clipboard) = &mut self.clipboard {
             clipboard
                 .set_text(subtitle_text)
-                .map_err(|e| Error::SubtitleSyncError(format!("无法复制到剪贴板: {}", e)))?;
+                .map_err(|e| Error::SubtitleSyncError {
+                    message: format!("Failed to copy to clipboard: {}", e),
+                    context: "Clipboard operation failed".to_string(),
+                })?;
         }
         Ok(())
     }
 
-    /// 根据播放位置更新剪贴板中的字幕内容
+    /// Updates clipboard with subtitle content based on playback position
     ///
-    /// # 参数
-    /// * `position_ms` - 播放位置（毫秒）
+    /// # Arguments
+    /// * `position_ms` - Playback position in milliseconds
     ///
-    /// # 返回值
-    /// 如果成功更新剪贴板则返回Ok，否则返回Err
+    /// # Returns
+    /// Returns Ok if successfully updated clipboard, otherwise returns Err
     pub fn update_clipboard(&mut self, position_ms: u64) -> Result<()> {
         let subtitle_text = self.get_current_subtitle(position_ms);
         self.copy_to_clipboard(&subtitle_text)
     }
 }
 
-/// 解析字幕文件
+/// Parses a subtitle file and returns a list of subtitle entries
 ///
-/// # 参数
-/// * `subtitle_path` - 字幕文件路径
+/// # Arguments
+/// * `subtitle_path` - Path to the subtitle file
 ///
-/// # 返回值
-/// 返回解析后的字幕条目列表
+/// # Returns
+/// Returns a list of parsed subtitle entries
 fn parse_subtitle_file(subtitle_path: &Path) -> Result<Vec<SubtitleEntry>> {
-    // 读取字幕文件内容
-    let content = std::fs::read(subtitle_path)
-        .map_err(|e| Error::SubtitleSyncError(format!("无法读取字幕文件: {}", e)))?;
+    // Read subtitle file content
+    let content = std::fs::read(subtitle_path).map_err(|e| Error::SubtitleSyncError {
+        message: format!("Failed to read subtitle file: {}", e),
+        context: format!("Reading file: {}", subtitle_path.display()),
+    })?;
 
-    // 获取文件扩展名
+    // Get file extension
     let extension = subtitle_path
         .extension()
         .and_then(|ext| ext.to_str())
         .unwrap_or("")
         .to_lowercase();
 
-    // 根据扩展名确定字幕格式
+    // Determine subtitle format based on extension
     let format = subparse::get_subtitle_format_by_extension(Some(std::ffi::OsStr::new(&extension)))
-        .ok_or_else(|| Error::SubtitleSyncError("无法确定字幕格式".to_string()))?;
+        .ok_or_else(|| Error::SubtitleSyncError {
+            message: "Unable to determine subtitle format".to_string(),
+            context: format!("File extension: {}", extension),
+        })?;
 
-    // 解析字幕文件
-    let subtitle_file = subparse::parse_bytes(format, &content, None, 0.0)
-        .map_err(|e| Error::SubtitleSyncError(format!("无法解析字幕文件: {}", e)))?;
+    // Parse subtitle file
+    let subtitle_file = subparse::parse_bytes(format, &content, None, 0.0).map_err(|e| {
+        Error::SubtitleSyncError {
+            message: format!("Failed to parse subtitle file: {}", e),
+            context: format!("Parsing file: {}", subtitle_path.display()),
+        }
+    })?;
 
-    // 转换为统一的字幕条目格式
+    // Convert to unified subtitle entry format
     let mut entries = Vec::new();
 
-    // 获取所有字幕条目
-    let subtitle_entries = subtitle_file
-        .get_subtitle_entries()
-        .map_err(|e| Error::SubtitleSyncError(format!("无法获取字幕条目: {}", e)))?;
+    // Get all subtitle entries
+    let subtitle_entries =
+        subtitle_file
+            .get_subtitle_entries()
+            .map_err(|e| Error::SubtitleSyncError {
+                message: format!("Failed to get subtitle entries: {}", e),
+                context: "Extracting subtitle entries from parsed file".to_string(),
+            })?;
 
-    // 转换每个条目
+    // Convert each entry
     for entry in subtitle_entries {
-        // 将时间转换为毫秒
+        // Convert time to milliseconds
         let start_time = entry.timespan.start.msecs() as u64;
         let end_time = entry.timespan.end.msecs() as u64;
 
-        // 清理字幕文本
+        // Clean subtitle text
         let text = clean_subtitle_text(&entry.line.unwrap_or_default());
 
         entries.push(SubtitleEntry {
@@ -149,46 +165,53 @@ fn parse_subtitle_file(subtitle_path: &Path) -> Result<Vec<SubtitleEntry>> {
     Ok(entries)
 }
 
-/// 清理字幕文本
+/// Cleans subtitle text by removing formatting tags and extra whitespace
 ///
-/// # 参数
-/// * `text` - 原始字幕文本
+/// # Arguments
+/// * `text` - Raw subtitle text
 ///
-/// # 返回值
-/// 返回清理后的字幕文本
+/// # Returns
+/// Returns cleaned subtitle text
 fn clean_subtitle_text(text: &str) -> String {
-    // 移除字幕格式标记（如HTML标签）
+    // Remove subtitle formatting tags (like HTML tags)
     let cleaned = text.replace("<i>", "").replace("</i>", "");
-    // 移除多余的空白字符
+    // Remove extra whitespace
     cleaned.trim().to_string()
 }
 
-/// 将时间字符串转换为毫秒
+/// Converts time string to milliseconds
 ///
-/// # 参数
-/// * `time_str` - 时间字符串（格式：HH:MM:SS,mmm）
+/// # Arguments
+/// * `time_str` - Time string in format HH:MM:SS,mmm
 ///
-/// # 返回值
-/// 返回时间对应的毫秒数
+/// # Returns
+/// Returns time in milliseconds
 #[allow(dead_code)]
 fn time_str_to_milliseconds(time_str: &str) -> Result<u64> {
     let parts: Vec<&str> = time_str.split(&[',', ':']).collect();
     if parts.len() != 4 {
-        return Err(Error::SubtitleSyncError("无效的时间格式".to_string()));
+        return Err(Error::SubtitleSyncError {
+            message: "Invalid time format".to_string(),
+            context: format!("Expected HH:MM:SS,mmm format, got: {}", time_str),
+        });
     }
 
-    let hours: u64 = parts[0]
-        .parse()
-        .map_err(|_| Error::SubtitleSyncError("无效的小时数".to_string()))?;
-    let minutes: u64 = parts[1]
-        .parse()
-        .map_err(|_| Error::SubtitleSyncError("无效的分钟数".to_string()))?;
-    let seconds: u64 = parts[2]
-        .parse()
-        .map_err(|_| Error::SubtitleSyncError("无效的秒数".to_string()))?;
-    let milliseconds: u64 = parts[3]
-        .parse()
-        .map_err(|_| Error::SubtitleSyncError("无效的毫秒数".to_string()))?;
+    let hours: u64 = parts[0].parse().map_err(|_| Error::SubtitleSyncError {
+        message: "Invalid hours".to_string(),
+        context: format!("Failed to parse hours from: {}", parts[0]),
+    })?;
+    let minutes: u64 = parts[1].parse().map_err(|_| Error::SubtitleSyncError {
+        message: "Invalid minutes".to_string(),
+        context: format!("Failed to parse minutes from: {}", parts[1]),
+    })?;
+    let seconds: u64 = parts[2].parse().map_err(|_| Error::SubtitleSyncError {
+        message: "Invalid seconds".to_string(),
+        context: format!("Failed to parse seconds from: {}", parts[2]),
+    })?;
+    let milliseconds: u64 = parts[3].parse().map_err(|_| Error::SubtitleSyncError {
+        message: "Invalid milliseconds".to_string(),
+        context: format!("Failed to parse milliseconds from: {}", parts[3]),
+    })?;
 
     Ok(hours * 3600000 + minutes * 60000 + seconds * 1000 + milliseconds)
 }
