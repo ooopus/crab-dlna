@@ -93,8 +93,8 @@ mod utils;
 /// Discovery of render devices in the network
 mod devices;
 
-/// Streaming of media files
-mod streaming;
+/// Media handling and streaming
+mod media;
 
 /// Handling of the DLNA protocol
 mod dlna;
@@ -108,25 +108,19 @@ mod error;
 /// Definition of the types
 mod types;
 
-/// Subtitle synchronization
-mod subtitle_sync;
-
 /// Keyboard event handling
 mod keyboard;
 
 /// Terminal User Interface
 mod tui;
 
-/// Playlist management
-mod playlist;
-
 pub use config::Config;
 pub use devices::{PositionInfo, Render, RenderSpec, TransportInfo};
 pub use dlna::{pause, play, resume, toggle_play_pause};
 pub use error::Error;
 pub use keyboard::{KeyboardHandler, start_interactive_control};
-pub use playlist::Playlist;
-pub use streaming::{MediaStreamingServer, STREAMING_PORT_DEFAULT, get_local_ip};
-pub use subtitle_sync::SubtitleSyncer;
+pub use media::{
+    MediaStreamingServer, Playlist, STREAMING_PORT_DEFAULT, SubtitleSyncer, get_local_ip,
+};
 pub use tui::start_tui;
 pub use utils::infer_subtitle_from_video;

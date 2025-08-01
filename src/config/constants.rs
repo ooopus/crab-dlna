@@ -58,9 +58,6 @@ pub const SUPPORTED_AUDIO_EXTENSIONS: &[&str] =
 /// Default interval for subtitle synchronization checks in milliseconds
 pub const DEFAULT_SUBTITLE_SYNC_INTERVAL_MS: u64 = 500;
 
-/// Default subtitle file name when no subtitle is available
-pub const DEFAULT_SUBTITLE_FILENAME: &str = "dummy.srt";
-
 // =============================================================================
 // Logging Constants
 // =============================================================================

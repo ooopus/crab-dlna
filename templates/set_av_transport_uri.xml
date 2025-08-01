@@ -1,0 +1,3 @@
+<InstanceID>{{ instance_id }}</InstanceID>
+<CurrentURI>{{ current_uri }}</CurrentURI>
+<CurrentURIMetaData>{{ current_uri_metadata }}</CurrentURIMetaData>

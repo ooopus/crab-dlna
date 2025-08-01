@@ -14,8 +14,7 @@ use std::{
 };
 
 /// Represents a playlist of media files
-#[derive(Debug, Clone)]
-#[derive(Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Playlist {
     /// List of media files in the playlist
     files: VecDeque<PathBuf>,
@@ -77,27 +76,23 @@ impl Playlist {
             });
         }
 
-        info!(
-            "Created playlist with {} files from directory: {}",
-            playlist.len(),
-            path.display()
-        );
         Ok(playlist)
     }
 
     /// Scans a directory for supported media files and adds them to the playlist
-    fn scan_directory<P: AsRef<Path>>(&mut self, dir_path: P) -> Result<()> {
-        let entries =
-            std::fs::read_dir(dir_path.as_ref()).map_err(|e| Error::MediaFileNotFound {
-                path: dir_path.as_ref().display().to_string(),
-                context: format!("Failed to read directory: {e}"),
-            })?;
+    fn scan_directory(&mut self, dir_path: &Path) -> Result<()> {
+        info!("Scanning directory for media files: {}", dir_path.display());
 
-        let mut files = Vec::new();
+        let entries = std::fs::read_dir(dir_path).map_err(|e| Error::MediaFileNotFound {
+            path: dir_path.display().to_string(),
+            context: format!("Failed to read directory: {e}"),
+        })?;
+
+        let mut media_files = Vec::new();
 
         for entry in entries {
             let entry = entry.map_err(|e| Error::MediaFileNotFound {
-                path: dir_path.as_ref().display().to_string(),
+                path: dir_path.display().to_string(),
                 context: format!("Failed to read directory entry: {e}"),
             })?;
 
@@ -105,22 +100,22 @@ impl Playlist {
 
             if path.is_file() && is_supported_media_file(&path) {
                 debug!("Found media file: {}", path.display());
-                files.push(path);
+                media_files.push(path);
             } else if path.is_dir() {
-                // Recursively scan subdirectories
-                if let Err(e) = self.scan_directory(&path) {
-                    warn!("Failed to scan subdirectory {}: {}", path.display(), e);
-                }
+                debug!("Skipping subdirectory: {}", path.display());
+            } else {
+                debug!("Skipping unsupported file: {}", path.display());
             }
         }
 
         // Sort files for consistent ordering
-        files.sort();
+        media_files.sort();
 
-        for file in files {
+        for file in media_files {
             self.add_file(file);
         }
 
+        info!("Found {} media files in directory", self.files.len());
         Ok(())
     }
 
@@ -162,7 +157,7 @@ impl Playlist {
     }
 
     /// Moves to the previous file in the playlist
-    pub fn previous(&mut self) -> Option<&PathBuf> {
+    pub fn previous_file(&mut self) -> Option<&PathBuf> {
         if self.files.is_empty() {
             return None;
         }
@@ -171,15 +166,16 @@ impl Playlist {
             None => {
                 self.current_index = Some(self.files.len() - 1);
             }
-            Some(0) => {
-                if self.loop_playlist {
-                    self.current_index = Some(self.files.len() - 1);
-                } else {
-                    return None; // Beginning of playlist
-                }
-            }
             Some(index) => {
-                self.current_index = Some(index - 1);
+                if index == 0 {
+                    if self.loop_playlist {
+                        self.current_index = Some(self.files.len() - 1);
+                    } else {
+                        return None; // Beginning of playlist
+                    }
+                } else {
+                    self.current_index = Some(index - 1);
+                }
             }
         }
 
@@ -191,12 +187,12 @@ impl Playlist {
         self.current_index = None;
     }
 
-    /// Returns whether the playlist is empty
+    /// Checks if the playlist is empty
     pub fn is_empty(&self) -> bool {
         self.files.is_empty()
     }
 
-    /// Returns the number of files in the playlist
+    /// Gets the number of files in the playlist
     pub fn len(&self) -> usize {
         self.files.len()
     }
@@ -220,8 +216,12 @@ impl Playlist {
     pub fn current_index(&self) -> Option<usize> {
         self.current_index
     }
-}
 
+    /// Gets a file at the specified index
+    pub fn get_file(&self, index: usize) -> Option<&PathBuf> {
+        self.files.get(index)
+    }
+}
 
 impl Iterator for Playlist {
     type Item = PathBuf;

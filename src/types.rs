@@ -21,6 +21,15 @@ impl SubtitleType {
         }
     }
 
+    /// Returns the MIME type for the subtitle type
+    pub fn mime_type(&self) -> &'static str {
+        match self {
+            SubtitleType::Srt => "text/srt",
+            SubtitleType::Ass => "text/x-ass",
+            SubtitleType::Ssa => "text/x-ssa",
+        }
+    }
+
     /// Returns all supported subtitle types in order of preference
     pub fn all() -> Vec<SubtitleType> {
         vec![SubtitleType::Srt, SubtitleType::Ass, SubtitleType::Ssa]

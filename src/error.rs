@@ -118,6 +118,15 @@ pub enum Error {
         /// The error message
         message: String,
     },
+
+    // Template rendering errors
+    /// Template rendering encountered an error
+    TemplateRenderError {
+        /// The name of the template that failed to render
+        template_name: String,
+        /// The underlying template error
+        source: Box<dyn std::error::Error + Send + Sync>,
+    },
 }
 
 impl fmt::Display for Error {
@@ -180,6 +189,12 @@ impl fmt::Display for Error {
             Error::KeyboardError { message } => {
                 write!(f, "Keyboard input error: {message}")
             }
+            Error::TemplateRenderError {
+                template_name,
+                source,
+            } => {
+                write!(f, "Failed to render template '{template_name}': {source}")
+            }
         }
     }
 }
@@ -195,6 +210,7 @@ impl std::error::Error for Error {
             Error::DlnaPlaybackFailed { source, .. } => Some(source),
             Error::DlnaActionFailed { source, .. } => Some(source),
             Error::StreamingServerError { source, .. } => Some(source),
+            Error::TemplateRenderError { source, .. } => Some(source.as_ref()),
             _ => None,
         }
     }
