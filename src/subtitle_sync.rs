@@ -5,6 +5,7 @@
 
 use crate::error::{Error, Result};
 use arboard::Clipboard;
+use aspasia::{Subtitle, TimedEventInterface, TimedSubtitleFile};
 use std::path::Path;
 
 /// Subtitle entry containing timing and text information
@@ -106,60 +107,83 @@ impl SubtitleSyncer {
 /// # Returns
 /// Returns a list of parsed subtitle entries
 fn parse_subtitle_file(subtitle_path: &Path) -> Result<Vec<SubtitleEntry>> {
-    // Read subtitle file content
-    let content = std::fs::read(subtitle_path).map_err(|e| Error::SubtitleSyncError {
-        message: format!("Failed to read subtitle file: {e}"),
-        context: format!("Reading file: {}", subtitle_path.display()),
-    })?;
-
-    // Get file extension
-    let extension = subtitle_path
-        .extension()
-        .and_then(|ext| ext.to_str())
-        .unwrap_or("")
-        .to_lowercase();
-
-    // Determine subtitle format based on extension
-    let format = subparse::get_subtitle_format_by_extension(Some(std::ffi::OsStr::new(&extension)))
-        .ok_or_else(|| Error::SubtitleSyncError {
-            message: "Unable to determine subtitle format".to_string(),
-            context: format!("File extension: {extension}"),
-        })?;
-
-    // Parse subtitle file
-    let subtitle_file = subparse::parse_bytes(format, &content, None, 0.0).map_err(|e| {
-        Error::SubtitleSyncError {
+    // Parse subtitle file using aspasia
+    let subtitle_file =
+        TimedSubtitleFile::new(subtitle_path).map_err(|e| Error::SubtitleSyncError {
             message: format!("Failed to parse subtitle file: {e}"),
             context: format!("Parsing file: {}", subtitle_path.display()),
-        }
-    })?;
+        })?;
 
     // Convert to unified subtitle entry format
     let mut entries = Vec::new();
 
-    // Get all subtitle entries
-    let subtitle_entries =
-        subtitle_file
-            .get_subtitle_entries()
-            .map_err(|e| Error::SubtitleSyncError {
-                message: format!("Failed to get subtitle entries: {e}"),
-                context: "Extracting subtitle entries from parsed file".to_string(),
-            })?;
+    // Get all subtitle events based on the subtitle format
+    match subtitle_file {
+        TimedSubtitleFile::SubRip(srt) => {
+            for event in srt.events() {
+                let start_time = Into::<i64>::into(event.start()).max(0) as u64;
+                let end_time = Into::<i64>::into(event.end()).max(0) as u64;
+                let text = clean_subtitle_text(&event.text);
 
-    // Convert each entry
-    for entry in subtitle_entries {
-        // Convert time to milliseconds
-        let start_time = entry.timespan.start.msecs() as u64;
-        let end_time = entry.timespan.end.msecs() as u64;
+                entries.push(SubtitleEntry {
+                    start_time,
+                    end_time,
+                    text,
+                });
+            }
+        }
+        TimedSubtitleFile::WebVtt(vtt) => {
+            for event in vtt.events() {
+                let start_time = Into::<i64>::into(event.start()).max(0) as u64;
+                let end_time = Into::<i64>::into(event.end()).max(0) as u64;
+                let text = clean_subtitle_text(&event.text);
 
-        // Clean subtitle text
-        let text = clean_subtitle_text(&entry.line.unwrap_or_default());
+                entries.push(SubtitleEntry {
+                    start_time,
+                    end_time,
+                    text,
+                });
+            }
+        }
+        TimedSubtitleFile::Ass(ass) => {
+            for event in ass.events() {
+                let start_time = Into::<i64>::into(event.start()).max(0) as u64;
+                let end_time = Into::<i64>::into(event.end()).max(0) as u64;
+                let text = clean_subtitle_text(&event.text);
 
-        entries.push(SubtitleEntry {
-            start_time,
-            end_time,
-            text,
-        });
+                entries.push(SubtitleEntry {
+                    start_time,
+                    end_time,
+                    text,
+                });
+            }
+        }
+        TimedSubtitleFile::Ssa(ssa) => {
+            for event in ssa.events() {
+                let start_time = Into::<i64>::into(event.start()).max(0) as u64;
+                let end_time = Into::<i64>::into(event.end()).max(0) as u64;
+                let text = clean_subtitle_text(&event.text);
+
+                entries.push(SubtitleEntry {
+                    start_time,
+                    end_time,
+                    text,
+                });
+            }
+        }
+        TimedSubtitleFile::MicroDvd(mdvd) => {
+            for event in mdvd.events() {
+                let start_time = Into::<i64>::into(event.start()).max(0) as u64;
+                let end_time = Into::<i64>::into(event.end()).max(0) as u64;
+                let text = clean_subtitle_text(&event.text);
+
+                entries.push(SubtitleEntry {
+                    start_time,
+                    end_time,
+                    text,
+                });
+            }
+        }
     }
 
     Ok(entries)
@@ -223,6 +247,34 @@ mod tests {
     use std::io::Write;
 
     #[test]
+    fn test_aspasia_direct() {
+        // Test aspasia directly with a more complete SRT file
+        let mut file = File::create("test_direct.srt").unwrap();
+        writeln!(file, "1").unwrap();
+        writeln!(file, "00:00:01,000 --> 00:00:03,000").unwrap();
+        writeln!(file, "Hello, world!").unwrap();
+        writeln!(file).unwrap(); // Empty line between entries
+        writeln!(file, "2").unwrap();
+        writeln!(file, "00:00:04,000 --> 00:00:06,000").unwrap();
+        writeln!(file, "This is a test.").unwrap();
+        writeln!(file).unwrap(); // Empty line at end
+        drop(file);
+
+        let subtitle_file = TimedSubtitleFile::new("test_direct.srt").unwrap();
+        match subtitle_file {
+            TimedSubtitleFile::SubRip(srt) => {
+                assert_eq!(srt.events().len(), 2);
+                assert_eq!(Into::<i64>::into(srt.events()[0].start()), 1000);
+                assert_eq!(Into::<i64>::into(srt.events()[0].end()), 3000);
+                assert_eq!(srt.events()[0].text, "Hello, world!");
+            }
+            _ => panic!("Expected SubRip format"),
+        }
+
+        std::fs::remove_file("test_direct.srt").unwrap();
+    }
+
+    #[test]
     fn test_parse_srt_subtitle() {
         // 创建临时SRT文件用于测试
         let mut file = File::create("test.srt").unwrap();
@@ -233,11 +285,11 @@ mod tests {
         writeln!(file, "2").unwrap();
         writeln!(file, "00:00:04,000 --> 00:00:06,000").unwrap();
         writeln!(file, "This is a test.").unwrap();
+        drop(file); // Ensure file is closed before reading
 
         // 解析字幕文件
         let entries = parse_subtitle_file(Path::new("test.srt")).unwrap();
 
-        // 验证解析结果
         assert_eq!(entries.len(), 2);
         assert_eq!(entries[0].start_time, 1000);
         assert_eq!(entries[0].end_time, 3000);

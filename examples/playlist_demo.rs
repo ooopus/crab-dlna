@@ -21,7 +21,7 @@ async fn main() -> Result<(), Error> {
         Err(_) => {
             // Fallback: create playlist from individual files
             println!("Directory not found, creating playlist from individual files...");
-            let mut playlist = Playlist::new();
+            let mut playlist = Playlist::default();
 
             // Add some example files (replace with actual files)
             let example_files = vec!["video1.mp4", "video2.avi", "audio1.mp3"];
@@ -30,7 +30,7 @@ async fn main() -> Result<(), Error> {
                 let path = PathBuf::from(file);
                 if path.exists() {
                     playlist.add_file(path);
-                    println!("Added to playlist: {}", file);
+                    println!("Added to playlist: {file}");
                 }
             }
 
@@ -55,7 +55,7 @@ async fn main() -> Result<(), Error> {
     println!("Discovering DLNA devices...");
     let render_spec = RenderSpec::First(discover_timeout_secs);
     let render = Render::new(render_spec).await?;
-    println!("Found device: {}", render);
+    println!("Found device: {render}");
 
     // Setup streaming configuration
     let host_ip = get_local_ip().await?;
@@ -65,9 +65,9 @@ async fn main() -> Result<(), Error> {
     // Play each file in the playlist
     let total_files = playlist.len();
     let mut file_count = 0;
-    while let Some(current_file) = playlist.next() {
+    while let Some(current_file) = playlist.next_file() {
         file_count += 1;
-        println!("\n=== Playing file {} of {} ===", file_count, total_files);
+        println!("\n=== Playing file {file_count} of {total_files} ===");
         println!("Now playing: {}", current_file.display());
 
         // Create streaming server for current file
@@ -88,7 +88,7 @@ async fn main() -> Result<(), Error> {
 
         // Stop after playing 3 files for demo purposes
         if file_count >= 3 {
-            println!("Demo completed after playing {} files", file_count);
+            println!("Demo completed after playing {file_count} files");
             break;
         }
     }

@@ -26,7 +26,7 @@ async fn main() -> Result<(), Error> {
     let config = Config::default();
     tokio::spawn(async move {
         if let Err(e) = play(render_clone, streaming_server, None, &config).await {
-            eprintln!("播放错误: {}", e);
+            eprintln!("播放错误: {e}");
         }
     });
 
@@ -41,7 +41,7 @@ async fn main() -> Result<(), Error> {
                 println!("总时长: {}", position_info.track_duration);
             }
             Err(e) => {
-                eprintln!("获取播放位置信息失败: {}", e);
+                eprintln!("获取播放位置信息失败: {e}");
             }
         }
 
@@ -50,7 +50,7 @@ async fn main() -> Result<(), Error> {
                 println!("播放状态: {}", transport_info.transport_state);
             }
             Err(e) => {
-                eprintln!("获取传输信息失败: {}", e);
+                eprintln!("获取传输信息失败: {e}");
             }
         }
 

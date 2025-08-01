@@ -18,20 +18,21 @@ use std::env;
 
 /// A minimal UPnP/DLNA media streamer
 #[derive(Parser)]
-#[clap(author, version, about, long_about = None)]
+#[command(author, version, about, long_about = None)]
 struct Cli {
     /// Time in seconds to search and discover streamer hosts
-    #[clap(short, long, default_value_t = DEFAULT_DISCOVERY_TIMEOUT)]
+    #[arg(short, long, default_value_t = DEFAULT_DISCOVERY_TIMEOUT)]
     timeout: u64,
 
     /// Log level
+    #[arg(long, value_name = "LEVEL", global = true, default_value_t = LevelFilter::Info)]
     log_level: LevelFilter,
 
     /// Subtitle synchronization interval in milliseconds
-    #[clap(long, default_value_t = 500)]
+    #[arg(long, default_value_t = 500)]
     subtitle_sync_interval: u64,
 
-    #[clap(subcommand)]
+    #[command(subcommand)]
     command: Commands,
 }
 
@@ -111,47 +112,47 @@ impl List {
 #[derive(Args)]
 struct Play {
     /// The hostname or IP to be used to host and serve the files (if not provided we derive it from the local network address)
-    #[clap(short = 'H', long = "host")]
+    #[arg(short = 'H', long = "host")]
     host: Option<String>,
 
     /// The port to be used to host and serve the files
-    #[clap(short = 'P', long = "port", default_value_t=STREAMING_PORT_DEFAULT)]
+    #[arg(short = 'P', long = "port", default_value_t=STREAMING_PORT_DEFAULT)]
     port: u32,
 
     /// Specify the device where to play through a query (scan devices before playing)
-    #[clap(short = 'q', long = "query-device")]
+    #[arg(short = 'q', long = "query-device")]
     device_query: Option<String>,
 
     /// Specify the device where to play through its exact location (no scan, faster)
-    #[clap(short, long = "device")]
+    #[arg(short, long = "device")]
     device_url: Option<String>,
 
     /// The file of the subtitle (if not provided, we derive it from <FILE_VIDEO>)
-    #[clap(short, long, value_name = "FILE_SUBTITLE")]
+    #[arg(short, long, value_name = "FILE_SUBTITLE")]
     subtitle: Option<std::path::PathBuf>,
 
     /// Disable subtitles
-    #[clap(short, long)]
+    #[arg(short, long)]
     no_subtitle: bool,
 
     /// Enable subtitle synchronization to clipboard
-    #[clap(long)]
+    #[arg(long)]
     subtitle_sync: bool,
 
     /// Enable interactive keyboard control (space to pause/resume, q to quit)
-    #[clap(short, long)]
+    #[arg(short, long)]
     interactive: bool,
 
     /// Enable Terminal User Interface (TUI) mode
-    #[clap(long)]
+    #[arg(long)]
     tui: bool,
 
     /// Enable playlist mode (loop through all files)
-    #[clap(long)]
+    #[arg(long)]
     playlist: bool,
 
     /// The file or directory to be played
-    #[clap()]
+    #[arg(long)]
     path: std::path::PathBuf,
 }
 
@@ -182,7 +183,7 @@ impl Play {
             let render_clone = render.clone();
             Some(tokio::spawn(async move {
                 if let Err(e) = start_interactive_control(render_clone).await {
-                    eprintln!("Interactive control error: {}", e);
+                    eprintln!("Interactive control error: {e}");
                 }
             }))
         } else {
@@ -191,7 +192,7 @@ impl Play {
 
         // Play all files in the playlist
         let mut play_result = Ok(());
-        while let Some(current_file) = playlist.next() {
+        while let Some(current_file) = playlist.next_file() {
             info!("Playing: {}", current_file.display());
 
             let media_streaming_server = self

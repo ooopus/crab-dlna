@@ -247,14 +247,6 @@ impl std::fmt::Display for Render {
     }
 }
 
-async fn upnp_discover(
-    search_target: &SearchTarget,
-    timeout: Duration,
-    ttl: Option<u32>,
-) -> Result<impl Stream<Item = Result<rupnp::Device, rupnp::Error>>> {
-    upnp_discover_with_config(search_target, timeout, SSDP_SEARCH_ATTEMPTS, ttl).await
-}
-
 async fn upnp_discover_with_config(
     search_target: &SearchTarget,
     timeout: Duration,
@@ -293,6 +285,21 @@ pub struct PositionInfo {
     pub abs_count: i32,
 }
 
+impl Default for PositionInfo {
+    fn default() -> Self {
+        Self {
+            track: 0,
+            track_duration: String::new(),
+            track_meta_data: String::new(),
+            track_uri: String::new(),
+            rel_time: String::new(),
+            abs_time: String::new(),
+            rel_count: -1,
+            abs_count: -1,
+        }
+    }
+}
+
 impl PositionInfo {
     /// Parses PositionInfo from HashMap response
     pub fn from_map(map: &std::collections::HashMap<String, String>) -> Result<Self, String> {
@@ -325,6 +332,7 @@ impl PositionInfo {
 ///
 /// Contains information returned by the GetTransportInfo operation
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct TransportInfo {
     /// Transport state (e.g., PLAYING, PAUSED_PLAYBACK, STOPPED)
     pub transport_state: String,
@@ -333,6 +341,7 @@ pub struct TransportInfo {
     /// Playback speed
     pub speed: String,
 }
+
 
 impl TransportInfo {
     /// Parses TransportInfo from HashMap response

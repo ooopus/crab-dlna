@@ -72,12 +72,6 @@ pub const LOG_LEVEL_ENV_VAR: &str = "CRABDLNA_LOG";
 // Device Discovery Constants
 // =============================================================================
 
-/// Default number of SSDP search attempts
-pub const DEFAULT_SSDP_SEARCH_ATTEMPTS: u32 = 3;
-
-/// Default TTL for SSDP discovery packets
-pub const DEFAULT_SSDP_TTL: u32 = 4;
-
 /// SSDP search attempts used in upnp_discover function
 pub const SSDP_SEARCH_ATTEMPTS: usize = 3;
 
@@ -90,9 +84,6 @@ pub const NO_DEVICES_DISCOVERED_MSG: &str = "No devices discovered in the networ
 
 /// Error message for render device not found
 pub const RENDER_NOT_FOUND_MSG: &str = "No render specified, selecting first one";
-
-/// Error message for failed clipboard initialization
-pub const CLIPBOARD_INIT_FAILED_MSG: &str = "Warning: Failed to initialize clipboard";
 
 /// Error message for invalid socket address format
 pub const INVALID_SOCKET_ADDRESS_MSG: &str = "Invalid socket address format";
@@ -113,9 +104,6 @@ pub const DLNA_ACTION_PLAY: &str = "Play";
 /// DLNA action name for pause
 pub const DLNA_ACTION_PAUSE: &str = "Pause";
 
-/// DLNA action name for stop
-pub const DLNA_ACTION_STOP: &str = "Stop";
-
 /// DLNA action name for getting position info
 pub const DLNA_ACTION_GET_POSITION_INFO: &str = "GetPositionInfo";
 
@@ -125,10 +113,6 @@ pub const DLNA_ACTION_GET_TRANSPORT_INFO: &str = "GetTransportInfo";
 // =============================================================================
 // Logging Messages
 // =============================================================================
-
-/// Log message for device discovery start
-pub const LOG_MSG_DISCOVERING_DEVICES: &str =
-    "Discovering devices in the network, waiting {} seconds...";
 
 /// Log message for setting video URI
 pub const LOG_MSG_SETTING_VIDEO_URI: &str = "Setting Video URI";
@@ -143,31 +127,8 @@ pub const LOG_MSG_NO_SUBTITLE_FILE: &str = "No subtitle file";
 pub const LOG_MSG_LIST_DEVICES: &str = "List devices";
 
 // =============================================================================
-// DLNA Metadata Templates
+// DLNA Metadata Constants
 // =============================================================================
-
-/// DLNA metadata template for video with subtitles
-pub const DLNA_VIDEO_METADATA_TEMPLATE: &str = r###"
-<DIDL-Lite xmlns="urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/"
-            xmlns:dc="http://purl.org/dc/elements/1.1/" 
-            xmlns:upnp="urn:schemas-upnp-org:metadata-1-0/upnp/" 
-            xmlns:dlna="urn:schemas-dlna-org:metadata-1-0/" 
-            xmlns:sec="http://www.sec.co.kr/" 
-            xmlns:xbmc="urn:schemas-xbmc-org:metadata-1-0/">
-    <item id="0" parentID="-1" restricted="1">
-        <dc:title>crab-dlna Video</dc:title>
-        <res protocolInfo="http-get:*:video/{type_video}:" xmlns:pv="http://www.pv.com/pvns/" pv:subtitleFileUri="{uri_sub}" pv:subtitleFileType="{type_sub}">{uri_video}</res>
-        <res protocolInfo="http-get:*:text/srt:*">{uri_sub}</res>
-        <res protocolInfo="http-get:*:smi/caption:*">{uri_sub}</res>
-        <sec:CaptionInfoEx sec:type="{type_sub}">{uri_sub}</sec:CaptionInfoEx>
-        <sec:CaptionInfo sec:type="{type_sub}">{uri_sub}</sec:CaptionInfo>
-        <upnp:class>object.item.videoItem.movie</upnp:class>
-    </item>
-</DIDL-Lite>
-"###;
 
 /// Default DLNA video title
 pub const DEFAULT_DLNA_VIDEO_TITLE: &str = "crab-dlna Video";
-
-/// DLNA UPnP class for video items
-pub const DLNA_VIDEO_UPNP_CLASS: &str = "object.item.videoItem.movie";

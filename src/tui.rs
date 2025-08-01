@@ -91,8 +91,8 @@ impl AppState {
                 self.error_message = None;
             }
             Err(e) => {
-                warn!("Failed to get transport info: {}", e);
-                self.error_message = Some(format!("Transport error: {}", e));
+                warn!("Failed to get transport info: {e}");
+                self.error_message = Some(format!("Transport error: {e}"));
             }
         }
 
@@ -102,20 +102,11 @@ impl AppState {
                 self.position_info = Some(info);
             }
             Err(e) => {
-                debug!("Failed to get position info: {}", e);
+                debug!("Failed to get position info: {e}");
             }
         }
 
         self.last_update = Instant::now();
-    }
-
-    /// Sets the current playing file
-    pub fn set_current_file(&mut self, file: Option<PathBuf>, index: Option<usize>) {
-        self.current_file = file;
-        self.current_file_index = index;
-        if let Some(ref path) = self.current_file {
-            self.status_message = format!("Playing: {}", path.display());
-        }
     }
 
     /// Moves to the next playlist item
@@ -143,7 +134,7 @@ impl AppState {
                 "PLAYING" => "▶ Playing".to_string(),
                 "PAUSED_PLAYBACK" => "⏸ Paused".to_string(),
                 "STOPPED" => "⏹ Stopped".to_string(),
-                state => format!("? {}", state),
+                state => format!("? {state}"),
             },
             None => "? Unknown".to_string(),
         }
@@ -213,19 +204,19 @@ impl TuiApp {
     pub fn new(render: Render, playlist: Playlist) -> Result<Self> {
         // Setup terminal
         enable_raw_mode().map_err(|e| Error::KeyboardError {
-            message: format!("Failed to enable raw mode: {}", e),
+            message: format!("Failed to enable raw mode: {e}"),
         })?;
 
         let mut stdout = io::stdout();
         execute!(stdout, EnterAlternateScreen, EnableMouseCapture).map_err(|e| {
             Error::KeyboardError {
-                message: format!("Failed to setup terminal: {}", e),
+                message: format!("Failed to setup terminal: {e}"),
             }
         })?;
 
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend).map_err(|e| Error::KeyboardError {
-            message: format!("Failed to create terminal: {}", e),
+            message: format!("Failed to create terminal: {e}"),
         })?;
 
         let state = Arc::new(Mutex::new(AppState::new(render, playlist)));
@@ -278,15 +269,15 @@ impl TuiApp {
             self.terminal
                 .draw(|f| draw_ui(f, &state))
                 .map_err(|e| Error::KeyboardError {
-                    message: format!("Failed to draw UI: {}", e),
+                    message: format!("Failed to draw UI: {e}"),
                 })?;
 
             // Handle events
             if event::poll(Duration::from_millis(50)).map_err(|e| Error::KeyboardError {
-                message: format!("Failed to poll for events: {}", e),
+                message: format!("Failed to poll for events: {e}"),
             })? {
                 match event::read().map_err(|e| Error::KeyboardError {
-                    message: format!("Failed to read event: {}", e),
+                    message: format!("Failed to read event: {e}"),
                 })? {
                     Event::Key(key_event) => {
                         if key_event.kind == KeyEventKind::Press {
@@ -351,7 +342,7 @@ impl TuiApp {
                     }
                     Err(e) => {
                         let mut state = self.state.lock().await;
-                        state.error_message = Some(format!("Failed to toggle play/pause: {}", e));
+                        state.error_message = Some(format!("Failed to toggle play/pause: {e}"));
                     }
                 }
             }
@@ -367,7 +358,7 @@ impl TuiApp {
                     }
                     Err(e) => {
                         let mut state = self.state.lock().await;
-                        state.error_message = Some(format!("Failed to stop: {}", e));
+                        state.error_message = Some(format!("Failed to stop: {e}"));
                     }
                 }
             }
@@ -397,7 +388,7 @@ impl TuiApp {
     /// Cleanup terminal state
     fn cleanup(&mut self) -> Result<()> {
         disable_raw_mode().map_err(|e| Error::KeyboardError {
-            message: format!("Failed to disable raw mode: {}", e),
+            message: format!("Failed to disable raw mode: {e}"),
         })?;
 
         execute!(
@@ -406,13 +397,13 @@ impl TuiApp {
             DisableMouseCapture
         )
         .map_err(|e| Error::KeyboardError {
-            message: format!("Failed to cleanup terminal: {}", e),
+            message: format!("Failed to cleanup terminal: {e}"),
         })?;
 
         self.terminal
             .show_cursor()
             .map_err(|e| Error::KeyboardError {
-                message: format!("Failed to show cursor: {}", e),
+                message: format!("Failed to show cursor: {e}"),
             })?;
 
         Ok(())
@@ -463,10 +454,7 @@ fn draw_header(f: &mut Frame, area: Rect, state: &AppState) {
     let device_name = state.render.device.friendly_name();
     let device_url = state.render.device.url().to_string();
 
-    let header_text = format!(
-        "🎵 crab-dlna TUI - Device: {} ({})",
-        device_name, device_url
-    );
+    let header_text = format!("🎵 crab-dlna TUI - Device: {device_name} ({device_url})");
 
     let header = Paragraph::new(header_text)
         .style(
@@ -564,7 +552,7 @@ fn draw_current_track_info(f: &mut Frame, area: Rect, state: &AppState) {
     let current_file_text = match &state.current_file {
         Some(path) => {
             let filename = path.file_name().unwrap_or_default().to_string_lossy();
-            format!("🎵 {}", filename)
+            format!("🎵 {filename}")
         }
         None => "No file playing".to_string(),
     };
@@ -597,7 +585,7 @@ fn draw_current_track_info(f: &mut Frame, area: Rect, state: &AppState) {
 /// Draws the progress bar
 fn draw_progress_bar(f: &mut Frame, area: Rect, state: &AppState) {
     let progress = state.progress_percentage();
-    let label = format!("{:.1}%", progress);
+    let label = format!("{progress:.1}%");
 
     let gauge = Gauge::default()
         .block(Block::default().borders(Borders::ALL).title("Progress"))

@@ -252,8 +252,7 @@ pub async fn toggle_play_pause(render: &Render) -> Result<()> {
         }
         state => {
             info!(
-                "Unknown transport state: {}, attempting to resume...",
-                state
+                "Unknown transport state: {state}, attempting to resume..."
             );
             resume(render).await
         }

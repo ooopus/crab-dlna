@@ -26,9 +26,9 @@ simple_logger = "5.0.0"
 clap = { version = "4.5.42", features = ["derive"] }
 
 # Terminal and keyboard input
-crossterm = "0.28.1"
-ratatui = "0.28.1"
-tui-input = "0.10.1"
+crossterm = "0.29.0"
+ratatui = "0.29.0"
+tui-input = "0.14.0"
 
 # Network and UPnP/DLNA
 rupnp = "3.0.0"
@@ -41,11 +41,12 @@ http = "1.3.1"
 xml-rs = "0.8.27"
 
 # Subtitle processing
-subparse = "0.7.0"
+aspasia = "0.2.1"
+subtile = "0.4.0"
 
 # Utilities
 slugify = "0.1.0"
-arboard = "3.4.0"
+arboard = "3.6.0"
 
 [profile.release]
 lto = "fat"

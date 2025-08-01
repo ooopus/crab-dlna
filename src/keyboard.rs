@@ -39,7 +39,7 @@ impl KeyboardHandler {
 
         // Enable raw mode to capture key events
         enable_raw_mode().map_err(|e| crate::error::Error::KeyboardError {
-            message: format!("Failed to enable raw mode: {}", e),
+            message: format!("Failed to enable raw mode: {e}"),
         })?;
 
         self.active = true;
@@ -48,7 +48,7 @@ impl KeyboardHandler {
 
         // Always disable raw mode when exiting
         if let Err(e) = disable_raw_mode() {
-            warn!("Failed to disable raw mode: {}", e);
+            warn!("Failed to disable raw mode: {e}");
         }
 
         self.active = false;
@@ -63,7 +63,11 @@ impl KeyboardHandler {
 
     /// Main event loop for handling keyboard input
     async fn event_loop(&mut self) -> Result<()> {
-        while self.active {
+        loop {
+            if !self.active {
+                break;
+            }
+
             // Use timeout to allow for graceful shutdown
             match timeout(Duration::from_millis(100), self.read_event()).await {
                 Ok(Ok(should_continue)) => {
@@ -72,7 +76,7 @@ impl KeyboardHandler {
                     }
                 }
                 Ok(Err(e)) => {
-                    warn!("Error reading keyboard event: {}", e);
+                    warn!("Error reading keyboard event: {e}");
                 }
                 Err(_) => {
                     // Timeout - continue loop to check if we should still be active
@@ -90,11 +94,11 @@ impl KeyboardHandler {
     async fn read_event(&self) -> Result<bool> {
         if event::poll(Duration::from_millis(50)).map_err(|e| {
             crate::error::Error::KeyboardError {
-                message: format!("Failed to poll for events: {}", e),
+                message: format!("Failed to poll for events: {e}"),
             }
         })? {
             match event::read().map_err(|e| crate::error::Error::KeyboardError {
-                message: format!("Failed to read event: {}", e),
+                message: format!("Failed to read event: {e}"),
             })? {
                 Event::Key(key_event) => {
                     return self.handle_key_event(key_event).await;
@@ -124,7 +128,7 @@ impl KeyboardHandler {
             KeyCode::Char(' ') => {
                 debug!("Space key pressed - toggling play/pause");
                 if let Err(e) = toggle_play_pause(&self.render).await {
-                    warn!("Failed to toggle play/pause: {}", e);
+                    warn!("Failed to toggle play/pause: {e}");
                 } else {
                     info!("Play/pause toggled successfully");
                 }
@@ -140,7 +144,7 @@ impl KeyboardHandler {
             KeyCode::Char('p') | KeyCode::Char('P') => {
                 debug!("P key pressed - toggling play/pause");
                 if let Err(e) = toggle_play_pause(&self.render).await {
-                    warn!("Failed to toggle play/pause: {}", e);
+                    warn!("Failed to toggle play/pause: {e}");
                 } else {
                     info!("Play/pause toggled successfully");
                 }
@@ -171,7 +175,7 @@ impl Drop for KeyboardHandler {
         if self.active {
             // Ensure raw mode is disabled when the handler is dropped
             if let Err(e) = disable_raw_mode() {
-                eprintln!("Failed to disable raw mode in drop: {}", e);
+                eprintln!("Failed to disable raw mode in drop: {e}");
             }
         }
     }

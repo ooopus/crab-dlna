@@ -15,6 +15,7 @@ use std::{
 
 /// Represents a playlist of media files
 #[derive(Debug, Clone)]
+#[derive(Default)]
 pub struct Playlist {
     /// List of media files in the playlist
     files: VecDeque<PathBuf>,
@@ -22,21 +23,9 @@ pub struct Playlist {
     current_index: Option<usize>,
     /// Whether to loop the playlist
     loop_playlist: bool,
-    /// Whether to shuffle the playlist
-    shuffle: bool,
 }
 
 impl Playlist {
-    /// Creates a new empty playlist
-    pub fn new() -> Self {
-        Self {
-            files: VecDeque::new(),
-            current_index: None,
-            loop_playlist: false,
-            shuffle: false,
-        }
-    }
-
     /// Creates a playlist from a single file
     pub fn from_file<P: AsRef<Path>>(file_path: P) -> Result<Self> {
         let path = file_path.as_ref().to_path_buf();
@@ -55,7 +44,7 @@ impl Playlist {
             });
         }
 
-        let mut playlist = Self::new();
+        let mut playlist = Self::default();
         playlist.add_file(path);
         Ok(playlist)
     }
@@ -78,7 +67,7 @@ impl Playlist {
             });
         }
 
-        let mut playlist = Self::new();
+        let mut playlist = Self::default();
         playlist.scan_directory(path)?;
 
         if playlist.is_empty() {
@@ -101,7 +90,7 @@ impl Playlist {
         let entries =
             std::fs::read_dir(dir_path.as_ref()).map_err(|e| Error::MediaFileNotFound {
                 path: dir_path.as_ref().display().to_string(),
-                context: format!("Failed to read directory: {}", e),
+                context: format!("Failed to read directory: {e}"),
             })?;
 
         let mut files = Vec::new();
@@ -109,7 +98,7 @@ impl Playlist {
         for entry in entries {
             let entry = entry.map_err(|e| Error::MediaFileNotFound {
                 path: dir_path.as_ref().display().to_string(),
-                context: format!("Failed to read directory entry: {}", e),
+                context: format!("Failed to read directory entry: {e}"),
             })?;
 
             let path = entry.path();
@@ -146,7 +135,7 @@ impl Playlist {
     }
 
     /// Moves to the next file in the playlist
-    pub fn next(&mut self) -> Option<&PathBuf> {
+    pub fn next_file(&mut self) -> Option<&PathBuf> {
         if self.files.is_empty() {
             return None;
         }
@@ -233,16 +222,11 @@ impl Playlist {
     }
 }
 
-impl Default for Playlist {
-    fn default() -> Self {
-        Self::new()
-    }
-}
 
 impl Iterator for Playlist {
     type Item = PathBuf;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.next().cloned()
+        self.next_file().cloned()
     }
 }
