@@ -13,7 +13,7 @@ use log::{debug, info};
 use rupnp::ssdp::{SearchTarget, URN};
 use std::{collections::HashSet, time::Duration};
 
-use super::{render::Render, types::RenderSpec};
+use super::render::Render;
 
 /// UPnP service URN for AVTransport
 pub const AV_TRANSPORT: URN = URN::service("schemas-upnp-org", "AVTransport", 1);
@@ -51,7 +51,7 @@ impl Render {
         )
         .await?;
 
-        pin_utils::pin_mut!(devices);
+        let mut devices = std::pin::pin!(devices);
 
         let mut renders = Vec::new();
         let mut discovered_urls = HashSet::new();
@@ -81,7 +81,10 @@ impl Render {
     }
 
     /// Selects a device by query string
-    pub(super) async fn select_by_query(duration_secs: u64, query: &String) -> Result<Option<Self>> {
+    pub(super) async fn select_by_query(
+        duration_secs: u64,
+        query: &String,
+    ) -> Result<Option<Self>> {
         debug!("Selecting device by query: '{query}'");
         for render in Self::discover(duration_secs).await? {
             let render_str = render.to_string();

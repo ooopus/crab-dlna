@@ -151,7 +151,7 @@ impl MediaStreamingServer {
         let video_file_uri = self.video_file.file_uri.clone();
 
         Router::new().route(
-            &format!("/{}", video_file_uri),
+            &format!("/{video_file_uri}"),
             get(move || serve_video_file(video_file_path)),
         )
     }

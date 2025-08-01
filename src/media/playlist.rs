@@ -7,7 +7,7 @@ use crate::{
     error::{Error, Result},
     utils::is_supported_media_file,
 };
-use log::{debug, info, warn};
+use log::{debug, info};
 use std::{
     collections::VecDeque,
     path::{Path, PathBuf},

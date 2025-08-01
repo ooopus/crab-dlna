@@ -80,7 +80,7 @@ impl SubtitleSyncer {
             if let Some(ref mut clipboard) = self.clipboard {
                 match clipboard.set_text(subtitle_text.clone()) {
                     Ok(_) => {
-                        println!("Copied to clipboard: {}", subtitle_text);
+                        println!("Copied to clipboard: {subtitle_text}");
                         return true;
                     }
                     Err(e) => {

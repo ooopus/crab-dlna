@@ -6,7 +6,6 @@
 use crate::{
     config::{
         DLNA_ACTION_PAUSE, DLNA_ACTION_PLAY, DLNA_DEFAULT_SPEED, DLNA_INSTANCE_ID,
-        MEDIA_PLAYBACK_FAILED_MSG,
     },
     devices::Render,
     error::{Error, Result},

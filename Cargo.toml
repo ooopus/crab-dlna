@@ -16,7 +16,6 @@ readme = "README.md"
 tokio = { version = "1.47.1", features = ["full"] }
 futures = "0.3.31"
 futures-util = { version = "0.3.31", default-features = false }
-pin-utils = "0.1.0"
 
 # Logging
 log = "0.4.27"
