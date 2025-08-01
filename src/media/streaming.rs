@@ -8,10 +8,16 @@ use crate::{
     error::{Error, Result},
     utils::{detect_subtitle_type, sanitize_filename_for_url},
 };
+use axum::{
+    Router,
+    http::{StatusCode, header},
+    response::{IntoResponse, Response},
+    routing::get,
+};
 use local_ip_address::local_ip;
 use log::debug;
 use std::net::SocketAddr;
-use warp::Filter;
+use tokio::net::TcpListener;
 
 /// Default port to use for the streaming server
 pub const STREAMING_PORT_DEFAULT: u32 = DEFAULT_STREAMING_PORT;
@@ -139,36 +145,22 @@ impl MediaStreamingServer {
         })
     }
 
-    /// Creates the warp routes for serving media files
-    fn get_routes(
-        self,
-    ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
-        // For now, just serve the video file - subtitle serving can be added later
-        self.get_video_route()
-    }
-
-    /// Creates the video file route
-    fn get_video_route(
-        self,
-    ) -> impl Filter<Extract = impl warp::Reply, Error = warp::Rejection> + Clone {
+    /// Creates the axum router for serving media files
+    fn get_routes(self) -> Router {
         let video_file_path = self.video_file.file_path.clone();
         let video_file_uri = self.video_file.file_uri.clone();
 
-        warp::path(video_file_uri)
-            .and(warp::get())
-            .and_then(move || {
-                let video_file_path = video_file_path.clone();
-                async move {
-                    debug!("Serving video file: {}", video_file_path.display());
-                    serve_full_file(video_file_path).await
-                }
-            })
+        Router::new().route(
+            &format!("/{}", video_file_uri),
+            get(move || serve_video_file(video_file_path)),
+        )
     }
 
     /// Start the media streaming server.
     pub async fn run(self) {
-        let streaming_routes = self.clone().get_routes();
-        warp::serve(streaming_routes).run(self.server_addr).await;
+        let app = self.clone().get_routes();
+        let listener = TcpListener::bind(self.server_addr).await.unwrap();
+        axum::serve(listener, app).await.unwrap();
     }
 }
 
@@ -214,28 +206,20 @@ fn get_mime_type_from_path(path: &std::path::Path) -> String {
     .to_string()
 }
 
-/// Serves a file with range support
-async fn serve_file_with_range(
-    file_path: &std::path::Path,
-    _range_header: &str,
-) -> Result<impl warp::Reply, warp::Rejection> {
-    // Implementation would go here - this is a simplified version
-    serve_full_file(file_path.to_path_buf()).await
-}
+/// Serves a video file using axum
+async fn serve_video_file(file_path: std::path::PathBuf) -> Response {
+    debug!("Serving video file: {}", file_path.display());
 
-/// Serves a complete file
-async fn serve_full_file(
-    file_path: std::path::PathBuf,
-) -> Result<impl warp::Reply, warp::Rejection> {
     match tokio::fs::read(&file_path).await {
         Ok(contents) => {
             let mime_type = get_mime_type_from_path(&file_path);
-            Ok(warp::reply::with_header(
+            (
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, mime_type)],
                 contents,
-                "content-type",
-                mime_type,
-            ))
+            )
+                .into_response()
         }
-        Err(_) => Err(warp::reject::not_found()),
+        Err(_) => StatusCode::NOT_FOUND.into_response(),
     }
 }

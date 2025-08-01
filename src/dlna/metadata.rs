@@ -9,7 +9,7 @@ use crate::{
     media::MediaStreamingServer,
 };
 use askama::Template;
-use xml::escape::escape_str_attribute;
+use quick_xml::escape::escape;
 
 /// Template context for DIDL-Lite metadata with subtitles
 #[derive(Template)]
@@ -77,7 +77,7 @@ pub fn build_metadata(streaming_server: &MediaStreamingServer) -> Result<String>
         }
     };
 
-    Ok(escape_str_attribute(metadata.as_str()).to_string())
+    Ok(escape(metadata.as_str()).to_string())
 }
 
 /// Builds the SetAVTransportURI payload
